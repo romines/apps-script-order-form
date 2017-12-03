@@ -1,0 +1,146 @@
+
+  <?!= HtmlService.createHtmlOutputFromFile('Stylesheet').getContent(); ?>
+  
+  <div class="body">
+    
+    <div class="formContainer">
+    
+      <h1>Packaged Beer Order Form</h1>
+      
+  
+      <form id="myForm">
+        <p>
+          <input type="hidden" name="distributor" value="<?= distributorID ?>" >
+          <label for="deliveryDate">Requested Delivery Date &nbsp;</label>
+          <input type="text" name="date" id="deliveryDate" /><br>
+        
+          <span class="smaller">*Please allow 2-3 weeks for delivery</span>
+        </p>
+        <p>
+          <label for="email">Email address (for order confirmation)</label>
+          <input type="text" name="email" id="email"/>
+        </p>
+        <p>General order notes/comments</p>
+          <textarea name="comments" id="comments" rows="8" cols="76"></textarea>
+        <? if (debugMode) { ?>
+          <div class="debug">
+            <h3>Testing mode is on. Turn <a href="#" id="debugOff">off</a></h3>
+            <p>
+              <label for="debugEmail">Order notification email address</label>
+              <input type="text" name="debugEmail" id="debugEmail"/><br>
+              <span class="smaller">*Notification goes to Rudy if left blank</span>
+              <br>
+              <br><input type="checkbox" name="ccChris" checked> CC Chris &amp; Derek
+            </p>
+            
+            <p>
+              <input type="button" id="populate" value="Populate Form"><br>
+              <span class="smaller">*Populate form with random numbers</span>
+            </p>
+          </div> 
+          <div id="restoreDebug" style="display: none;">
+              <h4>Testing mode is off. To restore, refresh the page.</h4>
+            </div>
+          <? } else { ?>
+            <input type="hidden" name="formMode" value="live">
+          <? } ?>
+
+        
+        <h3 class="section">Standard Beers</h3>
+        <table class="tble standards">
+          <tr>
+            <th class="hide"></th>
+            <th class="hide"></th> 
+            <th>4*6 12 oz. cans:</th>
+            <th>1/2 bbl keg:</th>
+            <th>1/6th bbl keg:</th>
+          </tr>
+          
+           <? for (var i = 0; i < standardBeers.length; i++) { 
+               var name = standardBeers[i][0]; 
+               var imgSrc = standardBeers[i][2];
+               var shortName = standardBeers[i][1];
+           ?>
+             <tr>
+               <td>
+                  <b><?= name ?></b>
+               </td>
+               <td><img src="<?= imgSrc ?>"></td>
+               <td>
+                 <input type="text" name="<?= shortName ?>_case" class="case numbersOnly"/><br>
+               </td>
+               <td>
+                 <input type="text" name="<?= shortName ?>_half" class="half numbersOnly"/><br>
+               </td>
+               <td>
+                 <input type="text" name="<?= shortName ?>_sixt" class="sixth numbersOnly"/>
+               </td>
+               
+             </tr>
+            <? } ?>          
+          
+        </table>
+        
+        <h3 class="section">Specialty Beers</h3>
+        <div id="jqOut" class="red"></div>
+        <div id="qExceeded" class="red" style="display: none;">You must enter a number less than the quantity available.</div>
+        <table class="tble specialty">
+          <tr>
+            <th class="hide"></th>
+            <th colspan="2">1/2 bbl keg:</th>
+            <th colspan="2">1/6th bbl keg:</th>
+          </tr>
+          <tr>
+            <td class="hide"></td>
+            <td colspan="2"><img src="http://adamromines.me/static/srb/halfBBL.jpg"></td>
+            <td colspan="2"><img src="http://adamromines.me/static/srb/sixthBBL.jpg"></td>
+          </tr>
+          <tr>
+            <td class="hide"></td>
+            <td>avail.</td>
+            <td>&nbsp;</td>
+            <td>avail.</td>
+            <td>&nbsp;</td>
+          </tr>
+           <? for (var i = 1; i < specBeers.length; i++) { ?>
+             <tr>
+               <? var url = specBeers[i][3]; 
+                  var beer = specBeers[i][0];
+               ?>
+               <td>
+                  <? if (url == "") { ?>
+                    <?= beer } else { ?>
+                     <a href="<?= specBeers[i][3] ?>" target="_blank" tabindex="-1"><?= beer ?></a>
+                    <? } ?>
+               </td>
+               <td><?= specBeers[i][2] ?></td>
+               <td>
+                 <input type="text" class="numbersOnly specIn" name="specBeer<?= i ?>Half"/>
+               </td>
+               <input name="specBeer<?= i ?>" type="hidden" value="<?= beer ?>">
+               <td><?= specBeers[i][1] ?></td>
+               <td>
+                 <input type="text" name="specBeer<?= i ?>Sixth" class="numbersOnly specIn" />
+                </td>
+               
+             </tr>
+            <? } ?>
+        </table>
+        
+        <br>
+        <input type="button" value="Submit" class="form-submit-button"
+           onclick="google.script.run
+            .withSuccessHandler(successConfirmation)
+            .processForm(this.parentNode); clientSubmit();" />
+        </form>
+      <div id="standBy"><h2>Please wait while we process your order</h2><br><img src="http://adamromines.me/static/srb/progress.gif"></div>
+      <div id="output" style="display: none;">
+        <p>If you have any questions or concerns, please contact Rudy Borrego, 
+        <a href="mailto:rudy@snakeriverbrewing.com?Subject=Distributor%20Ordering%20Question">rudy@snakeriverbrewing.com</a>.</p>
+      </div>
+    </div>
+    
+    
+
+  </div>
+  <?!= HtmlService.createHtmlOutputFromFile('JavaScript').getContent(); ?>
