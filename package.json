@@ -1,0 +1,24 @@
+{
+  "name": "ofa",
+  "version": "1.0.0",
+  "description": "Order Form Application: Ordering plus reporting for wholesale craft beer orders",
+  "main": "index.js",
+  "scripts": {
+    "clean": "rm dist/*",
+    "prebuild": "npm run clean",
+    "wrap": "(echo '<script>'; cat ./src/scripts.js; echo '\n</script>') > ./src/JavaScript.html",
+    "copy": "cp ./src/*.html ./dist/. && cp ./src/Code.js ./dist/.",
+    "build": "npm run wrap && npm run copy",
+    "postbuild": "rm ./src/JavaScript.html && gapps push"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/romines/apps-script-order-form.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/romines/apps-script-order-form/issues"
+  },
+  "homepage": "https://github.com/romines/apps-script-order-form#readme"
+}

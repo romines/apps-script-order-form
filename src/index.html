@@ -1,19 +1,19 @@
 
   <?!= HtmlService.createHtmlOutputFromFile('Stylesheet').getContent(); ?>
-  
+
   <div class="body">
-    
+
     <div class="formContainer">
-    
+
       <h1>Packaged Beer Order Form</h1>
-      
-  
+
+
       <form id="myForm">
         <p>
           <input type="hidden" name="distributor" value="<?= distributorID ?>" >
           <label for="deliveryDate">Requested Delivery Date &nbsp;</label>
           <input type="text" name="date" id="deliveryDate" /><br>
-        
+
           <span class="smaller">*Please allow 2-3 weeks for delivery</span>
         </p>
         <p>
@@ -32,12 +32,12 @@
               <br>
               <br><input type="checkbox" name="ccChris" checked> CC Chris &amp; Derek
             </p>
-            
+
             <p>
               <input type="button" id="populate" value="Populate Form"><br>
               <span class="smaller">*Populate form with random numbers</span>
             </p>
-          </div> 
+          </div>
           <div id="restoreDebug" style="display: none;">
               <h4>Testing mode is off. To restore, refresh the page.</h4>
             </div>
@@ -45,21 +45,21 @@
             <input type="hidden" name="formMode" value="live">
           <? } ?>
 
-        
+
         <h3 class="section">Standard Beers</h3>
         <table class="tble standards">
           <tr>
             <th class="hide"></th>
-            <th class="hide"></th> 
+            <th class="hide"></th>
             <th>4*6 12 oz. cans:</th>
             <th>1/2 bbl keg:</th>
             <th>1/6th bbl keg:</th>
           </tr>
-          
-           <? for (var i = 0; i < standardBeers.length; i++) { 
-               var name = standardBeers[i][0]; 
+
+           <? for (var i = 0; i < standardBeers.length; i++) {
+               var name = standardBeers[i][0];
                var imgSrc = standardBeers[i][2];
-               var shortName = standardBeers[i][1];
+               var shortName = standardBeers[i][1].toLowerCase();
            ?>
              <tr>
                <td>
@@ -73,14 +73,14 @@
                  <input type="text" name="<?= shortName ?>_half" class="half numbersOnly"/><br>
                </td>
                <td>
-                 <input type="text" name="<?= shortName ?>_sixt" class="sixth numbersOnly"/>
+                 <input type="text" name="<?= shortName ?>_sixth" class="sixth numbersOnly"/>
                </td>
-               
+
              </tr>
-            <? } ?>          
-          
+            <? } ?>
+
         </table>
-        
+
         <h3 class="section">Specialty Beers</h3>
         <div id="jqOut" class="red"></div>
         <div id="qExceeded" class="red" style="display: none;">You must enter a number less than the quantity available.</div>
@@ -104,7 +104,7 @@
           </tr>
            <? for (var i = 1; i < specBeers.length; i++) { ?>
              <tr>
-               <? var url = specBeers[i][3]; 
+               <? var url = specBeers[i][3];
                   var beer = specBeers[i][0];
                ?>
                <td>
@@ -122,25 +122,25 @@
                <td>
                  <input type="text" name="specBeer<?= i ?>Sixth" class="numbersOnly specIn" />
                 </td>
-               
+
              </tr>
             <? } ?>
         </table>
-        
+
         <br>
         <input type="button" value="Submit" class="form-submit-button"
-           onclick="google.script.run
-            .withSuccessHandler(successConfirmation)
-            .processForm(this.parentNode); clientSubmit();" />
+           onclick="submitForm(this.parentNode);" />
         </form>
       <div id="standBy"><h2>Please wait while we process your order</h2><br><img src="http://adamromines.me/static/srb/progress.gif"></div>
       <div id="output" style="display: none;">
-        <p>If you have any questions or concerns, please contact Rudy Borrego, 
+        <p>If you have any questions or concerns, please contact Rudy Borrego,
         <a href="mailto:rudy@snakeriverbrewing.com?Subject=Distributor%20Ordering%20Question">rudy@snakeriverbrewing.com</a>.</p>
       </div>
     </div>
-    
-    
+
+
 
   </div>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
   <?!= HtmlService.createHtmlOutputFromFile('JavaScript').getContent(); ?>
