@@ -56,24 +56,21 @@
             <th>1/6th bbl keg:</th>
           </tr>
 
-           <? for (var i = 0; i < standardBeers.length; i++) {
-               var name = standardBeers[i][0];
-               var imgSrc = standardBeers[i][2];
-               var shortName = standardBeers[i][1].toLowerCase();
-           ?>
+          <? for (var i = 0; i < standardBeers.length; i++) {
+             var beer = standardBeers[i]; ?>
              <tr>
                <td>
-                  <b><?= name ?></b>
+                  <b><?= beer.name ?></b>
                </td>
-               <td><img src="<?= imgSrc ?>"></td>
+               <td><img src="<?= beer.imgSrc ?>"></td>
                <td>
-                 <input type="text" name="<?= shortName ?>_case" class="case numbersOnly"/><br>
-               </td>
-               <td>
-                 <input type="text" name="<?= shortName ?>_half" class="half numbersOnly"/><br>
+                 <input type="text" name="<?= beer.camelCasedName ?>_case" class="case numbersOnly"/><br>
                </td>
                <td>
-                 <input type="text" name="<?= shortName ?>_sixth" class="sixth numbersOnly"/>
+                 <input type="text" name="<?= beer.camelCasedName ?>_half" class="half numbersOnly"/><br>
+               </td>
+               <td>
+                 <input type="text" name="<?= beer.camelCasedName ?>_sixth" class="sixth numbersOnly"/>
                </td>
 
              </tr>
@@ -102,25 +99,23 @@
             <td>avail.</td>
             <td>&nbsp;</td>
           </tr>
-           <? for (var i = 1; i < specBeers.length; i++) { ?>
+          <? for (var i = 0; i < specBeers.length; i++) {
+             var beer = specBeers[i];
+          ?>
              <tr>
-               <? var url = specBeers[i][3];
-                  var beer = specBeers[i][0];
-               ?>
                <td>
-                  <? if (url == "") { ?>
-                    <?= beer } else { ?>
-                     <a href="<?= specBeers[i][3] ?>" target="_blank" tabindex="-1"><?= beer ?></a>
+                  <? if (beer.descriptionUrl == "") { ?>
+                    <?= beer.name } else { ?>
+                     <a href="<?= beer.descriptionUrl ?>" target="_blank" tabindex="-1"><?= beer.name ?></a>
                     <? } ?>
                </td>
-               <td><?= specBeers[i][2] ?></td>
+               <td><?= beer.availableHalf ?></td>
                <td>
-                 <input type="text" class="numbersOnly specIn" name="specBeer<?= i ?>Half"/>
+                 <input type="text" class="numbersOnly specIn" name="<?= beer.camelCasedName ?>_half"/>
                </td>
-               <input name="specBeer<?= i ?>" type="hidden" value="<?= beer ?>">
-               <td><?= specBeers[i][1] ?></td>
+               <td><?= beer.availableSixth ?></td>
                <td>
-                 <input type="text" name="specBeer<?= i ?>Sixth" class="numbersOnly specIn" />
+                 <input type="text" name="<?= beer.camelCasedName?>_sixth" class="numbersOnly specIn" />
                 </td>
 
              </tr>

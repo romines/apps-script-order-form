@@ -33,7 +33,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
 
     $('#standBy').hide();
 
-    google.script.run.asyncProcessing(order);
+    // google.script.run.asyncProcessing(order);
 
     var message = '<p>Thank you for your submission. If you entered an email address for confirmation, you should receive an email shortly.<br> To review your order, please visit the <a href="' + order.meta.orderHist + '" target="_blank">Order History page</a>.</p>';
 

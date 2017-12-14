@@ -41,12 +41,19 @@ var CHRIS = 'adam.romines@gmail.com, adamr@telenect.com';
   // *** END STAGING GLOBALS ***
 
 var AVAILABLE_STANDARDS = AVAILABLE_BEERS
-     .getSheets()[0];
+  .getSheets()[0]
+  .getDataRange()
+  .getValues()
+  .filter(availableOnly)
+  .map(buildAvailableCannedBeer);
 
 var AVAILABLE_SPECIALTIES = AVAILABLE_BEERS
-     .getSheets()[1];
+  .getSheets()[1]
+  .getDataRange()
+  .getValues()
+  .map(buildAvailableSpecialtyBeer);
 
-  // *** FLAGSHIP BEER GLOBALS(change this stuff when canned beers change) ***
+AVAILABLE_SPECIALTIES.shift();
 
 var STANDARDS = ['pale','lager','zonker','pakos','snowKing', 'hefe'];
 
@@ -63,54 +70,25 @@ var SPECIALSROWINDEX = 10;
 
 function doGet(e) {
 
-  var onlyAvailable = function(beerRow) { return beerRow[3] === 'Y' || beerRow[3] === 'y'; };
-
   var templateObject = HtmlService.createTemplateFromFile('index');
 
-  // Get arrays of currently available specialty and standard beers, expose on template object
+  // Expose arrays of currently available specialty and standard beers on template object
 
-  templateObject.specBeers = AVAILABLE_SPECIALTIES.getDataRange()
-     .getValues();
-
-  templateObject.standardBeers = AVAILABLE_STANDARDS.getDataRange()
-     .getValues()
-     .filter(onlyAvailable);
+  templateObject.specBeers = AVAILABLE_SPECIALTIES;
+  templateObject.standardBeers = AVAILABLE_STANDARDS;
 
   // Make query string vars available on template object
 
   templateObject.distributorID = e.parameter.d;
   templateObject.debugMode = e.parameter.debug;
-  // templateObject.distributorID = 5712;
-  // templateObject.debugMode = false;
 
   return templateObject.evaluate().setTitle('Packaged Beer Order Form');
 
 }
 
-
-function Beer(name, sixthBBL, halfBBL, cases, specialty) {
- /*
-  * Constructor for Beer object.
-  *
-  */
-
-  this.name = name;
-  this.sixthBBL = sixthBBL;
-  this.halfBBL = halfBBL;
-  this.cases = cases;
-  this.specialty = specialty || false;
-
-  }
-
-
 function processForm(form) {
  /*
-  * Triggered on form submit with success handler to confirm success in UI. Records raw order
-  * data to Order Data spreadsheet.
-  *
-  * Param: form - submitted form object.
-  *
-  * Returns: order object for further (asynchronous) processing
+  * Triggered on form submit
   *
   */
 
@@ -131,50 +109,47 @@ function processForm(form) {
   // An order consists of beer objects constructed from form data, and meta information about the
   // order in a 'meta' object.
 
-  meta : {
-      orderID : orderID,
-      submissionDate : submitted.toString(),
-      distID : form.distributor,
-      distributor : sheets.distName,
-      short : sheets.short,
-      orderData : sheets.orderData,
-      orderHist : sheets.orderHistory,
-      dateRequested : form.date,
-      distEmail : form.email,
-      comments : form.comments,
-      formMode : form.formMode,
-      notifEmail : form.debugEmail,
-      ccChris : form.ccChris
+    meta: {
+      orderID: orderID,
+      submissionDate: submitted.toString(),
+      distID: form.distributor,
+      distributor: sheets.distName,
+      short: sheets.short,
+      orderData: sheets.orderData,
+      orderHist: sheets.orderHistory,
+      dateRequested: form.date,
+      distEmail: form.email,
+      comments: form.comments,
+      formMode: form.formMode,
+      notifEmail: form.debugEmail,
+      ccChris: form.ccChris
     },
-
-
-    pale : new Beer('Snake River Pale Ale', form.pale_sixth, form.pale_half, form.pale_case),
-    lager : new Beer('Lager', form.lager_sixth, form.lager_half, form.lager_case),
-    zonker : new Beer('Zonker Stout', form.stout_sixth, form.stout_half, form.stout_case),
-//    helles : new Beer('Helles', form.helles_sixth, form.helles_half, form.helles_case),
-    hefe : new Beer('Hoback Hefeweisen', form.hefe_sixth, form.hefe_half, form.hefe_case),
-    pakos : new Beer('Pako\'s IPA', form.pako_sixth, form.pako_half, form.pako_case),
-    snowKing : new Beer('Snow King Pale Ale', form.ska_sixth, form.ska_half, form.ska_case),
-//    pakitos : new Beer('Pakito\'s Session IPA', form.pakitos_sixth, form.pakitos_half, form.pakitos_case),
-    special1 : new Beer(form.specBeer1, form.specBeer1Sixth, form.specBeer1Half, 0, true),
-    special2 : new Beer(form.specBeer2, form.specBeer2Sixth, form.specBeer2Half, 0, true),
-    special3 : new Beer(form.specBeer3, form.specBeer3Sixth, form.specBeer3Half, 0, true),
-    special4 : new Beer(form.specBeer4, form.specBeer4Sixth, form.specBeer4Half, 0, true),
-    special5 : new Beer(form.specBeer5, form.specBeer5Sixth, form.specBeer5Half, 0, true),
-    special6 : new Beer(form.specBeer6, form.specBeer6Sixth, form.specBeer6Half, 0, true),
-    special7 : new Beer(form.specBeer7, form.specBeer7Sixth, form.specBeer7Half, 0, true)
-
+    canned: {},
+    specialty: {}
 
   };
 
-  // Write order data to Order Data spreadsheet
+  AVAILABLE_STANDARDS.forEach(function (beer) {
+    order.canned[beer.camelCasedName] = {
+      half: form[beer.camelCasedName + '_half'],
+      sixth: form[beer.camelCasedName + '_sixth'],
+      cans: form[beer.camelCasedName + '_case'],
+      name: beer.name,
+      imgSrc: beer.imgSrc
+    };
+  });
 
-  writeOrderData(order);
+  AVAILABLE_SPECIALTIES.forEach(function (beer) {
+    order.specialty[beer.camelCasedName] = {
+      half: form[beer.camelCasedName + '_half'],
+      sixth: form[beer.camelCasedName + '_sixth'],
+      name: beer.name
+    };
+  });
 
-  return order;
+  return writeOrderData(order);
 
 }
-
 
 
 function writeOrderData (order){
@@ -185,29 +160,25 @@ function writeOrderData (order){
   * writing individual beer properties to another array with a loop...but this works too.
   *
   */
+  var orderLine = [order.meta.orderID, order.meta.submissionDate, order.meta.dateRequested, order.meta.comments];
+
+  for (var i = 0; i < AVAILABLE_STANDARDS.length; i++) {
+    var availableBeer = AVAILABLE_STANDARDS[i];
+    var ordered = order.canned[availableBeer.camelCasedName];
+    orderLine.push(ordered.name, ordered.sixth, ordered.half, ordered.cans);
+  }
+
+  for (var i = 0; i < AVAILABLE_SPECIALTIES.length; i++) {
+    var availableBeer = AVAILABLE_SPECIALTIES[i];
+    var ordered = order.specialty[availableBeer.camelCasedName];
+    orderLine.push(ordered.name, ordered.sixth, ordered.half);
+  }
 
   var orderDataSheet = SpreadsheetApp.openByUrl(order.meta.orderData).getSheets()[0];
 
-  var orderLine = [order.meta.orderID, order.meta.submissionDate, order.meta.dateRequested, order.meta.comments,
-    order.pale.sixthBBL, order.pale.halfBBL, order.pale.cases,
-    order.lager.sixthBBL, order.lager.halfBBL, order.lager.cases,
-    order.zonker.sixthBBL, order.zonker.halfBBL, order.zonker.cases,
-//    order.helles.sixthBBL, order.helles.halfBBL, order.helles.cases,
-    order.hefe.sixthBBL, order.hefe.halfBBL, order.hefe.cases,
-    order.pakos.sixthBBL, order.pakos.halfBBL, order.pakos.cases,
-    order.snowKing.sixthBBL, order.snowKing.halfBBL, order.snowKing.cases,
-//    order.pakitos.sixthBBL, order.pakitos.halfBBL, order.pakitos.cases,
-    order.special1.name, order.special1.sixthBBL, order.special1.halfBBL,
-    order.special2.name, order.special2.sixthBBL, order.special2.halfBBL,
-    order.special3.name, order.special3.sixthBBL, order.special3.halfBBL,
-    order.special4.name, order.special4.sixthBBL, order.special4.halfBBL,
-    order.special5.name, order.special5.sixthBBL, order.special5.halfBBL,
-    order.special6.name, order.special6.sixthBBL, order.special6.halfBBL,
-    order.special7.name, order.special7.sixthBBL, order.special7.halfBBL
-
-    ];
-
-  orderDataSheet.appendRow(orderLine);
+  orderDataSheet.appendRow(orderLine.map(function (item) {
+    return item ? item : '';
+  }));
 
 }
 
@@ -846,12 +817,46 @@ function isEmpty(unit) {
 
 }
 
+function toCamelCase(s) {
+  // remove all characters that should not be in a variable name
+  // as well underscores an numbers from the beginning of the string
+  s = s.replace(/([^a-zA-Z0-9_\- ])|^[_0-9]+/g, "").trim().toLowerCase();
+  // uppercase letters preceeded by a hyphen or a space
+  s = s.replace(/([ -]+)([a-zA-Z0-9])/g, function(a,b,c) {
+      return c.toUpperCase();
+  });
+  // uppercase letters following numbers
+  s = s.replace(/([0-9]+)([a-zA-Z])/g, function(a,b,c) {
+      return b + c.toUpperCase();
+  });
+  return s;
+}
+
+function availableOnly (beerRow) { return beerRow[3] === 'Y' || beerRow[3] === 'y'; }
+
+function buildAvailableSpecialtyBeer(beerRow) {
+  return {
+    name: beerRow[0],
+    availableSixth: beerRow[1],
+    availableHalf: beerRow[2],
+    descriptionUrl: beerRow[3],
+    camelCasedName: toCamelCase(beerRow[0])
+  };
+}
+
+function buildAvailableCannedBeer(beerRow) {
+  return {
+    name: beerRow[0],
+    imgSrc: beerRow[2],
+    camelCasedName: toCamelCase(beerRow[1])
+  };
+}
 
 function gBug(subj, body) {
 
   body = body || subj
 
-  GmailApp.sendEmail("adam.romines@gmail.com", subj, body);
+  GmailApp.sendEmail("adam.romines@gmail.com", subj.substring(0, 65), body);
 
 }
 
