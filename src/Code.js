@@ -149,6 +149,10 @@ function processForm(form) {
 
   return writeOrderData(order);
 
+  if (SENDEMAILS) {
+    sendEmails(order);
+  }
+
 }
 
 
@@ -156,29 +160,146 @@ function writeOrderData (order){
  /*
   * Builds array of order data and appends as single line to Order Data sheet
   *
-  * This could probably be handled by building an array with the getBeers function and then
-  * writing individual beer properties to another array with a loop...but this works too.
-  *
   */
   var orderLine = [order.meta.orderID, order.meta.submissionDate, order.meta.dateRequested, order.meta.comments];
 
-  for (var i = 0; i < AVAILABLE_STANDARDS.length; i++) {
-    var availableBeer = AVAILABLE_STANDARDS[i];
+  AVAILABLE_STANDARDS.forEach(function (availableBeer) {
     var ordered = order.canned[availableBeer.camelCasedName];
     orderLine.push(ordered.name, ordered.sixth, ordered.half, ordered.cans);
-  }
+  });
 
-  for (var i = 0; i < AVAILABLE_SPECIALTIES.length; i++) {
-    var availableBeer = AVAILABLE_SPECIALTIES[i];
+  AVAILABLE_SPECIALTIES.forEach(function (availableBeer) {
     var ordered = order.specialty[availableBeer.camelCasedName];
     orderLine.push(ordered.name, ordered.sixth, ordered.half);
-  }
+  });
 
   var orderDataSheet = SpreadsheetApp.openByUrl(order.meta.orderData).getSheets()[0];
 
   orderDataSheet.appendRow(orderLine.map(function (item) {
     return item ? item : '';
   }));
+
+  sendEmails(order);
+
+}
+
+function sendEmails (order) {
+
+ /*
+  * Uses hardcoded email copy and data from order to send an email notification to the employee
+  * that must fulfill order, an an order confirmation to the customer using GmailApp.sendEmail()
+  *
+  */
+
+  var sendConfirmation = !!order.meta.distEmail;
+
+  var distEmail = order.meta.distEmail;
+  var distributor = order.meta.distributor;
+
+  var orderHistoryURL = order.meta.orderHist;
+
+  var buildTable = function (order, typesToInclude) {
+   /*
+    * Builds html table for use in email. Even and odd rows get different backgrounds for readability.
+    *
+    */
+    var beerToTableRow = function (beer, oddOrEven) {
+
+      var rowData = [ beer.name, beer.cans ? beer.cans : '&nbsp;', beer.half, beer.sixth ];
+      var trString = ( oddOrEven == 'odd' ) ? '<tr style="background-color: #E6E6E6;">' : '<tr>';
+
+      rowData.forEach(function (item) {
+        trString += '<td style="border: 1px solid black; text-align: center;">' + item + '</td>';
+      });
+      return trString + '</tr>';
+    };
+
+    var tableString = '<table style="border: 1px solid black; border-collapse: collapse;"><tr><th style="border: 1px solid black;">Beer</th><th style="border: 1px solid black;">Cases</th><th style="border: 1px solid black;">1/2 Barrel Kegs</th><th style="border: 1px solid black;">1/6 Barrel Kegs</th></tr>';
+
+    typesToInclude.forEach(function (beerType) {
+
+      var nonEmptyBeers = Object.keys(order[beerType]).map(function (beerKey) {
+        return order[beerType][beerKey];
+      }).filter(function (beer) {
+        return beer.half || beer.sixth || beer.cans;
+      });
+
+      for (var i=0; i < nonEmptyBeers.length; i++) {
+        if (i%2 === 0) {
+          tableString += beerToTableRow(nonEmptyBeers[i], 'even');
+        }
+        else { tableString += beerToTableRow(nonEmptyBeers[i], 'odd'); }
+      }
+
+    });
+
+    return tableString + '</table>';
+
+  };
+
+
+  var fullTable = buildTable(order, ['canned', 'specialty']);
+  var specialsTable = buildTable(order, ['specialty']);
+  // var oneLine = tableForCopyPaste(order);
+
+
+  // Confirmation email
+
+  var confEmailHtml = '<h2>Thank you for your order.</h2>' + fullTable + '<br>To review full order details, please visit your <a href="' + orderHistoryURL + '">Order History page</a>.';
+
+  // Just in case the email body parameter serves as plaintext fallback?
+
+  var confTextOnly = 'Thank you for your order. To review full order details, please visit your Order History page: ' + orderHistoryURL;
+
+  if (sendConfirmation) {
+
+    // protect against bad email address user input
+    try {
+      GmailApp.sendEmail(distEmail, 'Snake River Brewing packaged beer order', confTextOnly, {
+        htmlBody: confEmailHtml
+      });
+    }
+    catch(e) {
+      GmailApp.sendEmail('adam.romines@gmail.com', 'SRB: Error sending confirmation email', e.message)
+    }
+  }
+
+  // Notification to whomever is doing fulfillment
+
+  // var fulfillment = order.meta.notifEmail || FULFILLMENT;
+
+  // var salutation = distributor + ' has submitted a new order';
+
+  // var specialtyString = '';
+
+  // if (specialsTable) {
+  //   specialtyString = '<h3>Specialty Beers:</h3>' + specialsTable;
+  // }
+
+  // var notifEmailHtml = '<h2>' + salutation + '.</h2>' + '<h3>Order data:</h3>' + oneLine + '<br>'+ specialtyString + '<br><br><b>Order comments/special instructions:</b> ' + order.meta.comments + '<br><br>To view full order details for this or past orders, visit the ' + distributor + ' <a href="' + orderHistoryURL + '">Order History page</a>. <br><br>To view all current orders, visit the <a href="' + CURRENTORDERS + '">Current Orders Sheet</a>.';
+
+  // // Plaintext version
+
+  // var notifTextOnly = distributor + ' has submitted an order. To view full order details, please visit their Order History page: ' + orderHistoryURL;
+
+  // // Email options object
+
+  // var emailOptions = {
+  //   htmlBody: notifEmailHtml
+  //   };
+
+
+  // if ( order.meta.formMode || order.meta.ccChris ) {
+  //   emailOptions.cc = CHRIS;
+  // }
+
+  // if (! order.meta.formMode ) {
+  //   salutation = 'Testing: ' + salutation;
+  // }
+
+  // // Send notification email
+
+  // GmailApp.sendEmail(fulfillment, salutation, notifTextOnly, emailOptions);
 
 }
 
@@ -191,9 +312,7 @@ function asyncProcessing(order) {
   *
   */
 
-  if (SENDEMAILS) {
-    sendEmails(order);
-  }
+
 
   decInventory(order);
 
@@ -388,98 +507,6 @@ function writeToMaster(order) {
 
 }
 
-function sendEmails (order) {
-
- /*
-  * Uses hardcoded email copy and data from order to send an email notification to the employee
-  * that must fulfill order, an an order confirmation to the customer using GmailApp.sendEmail()
-  *
-  */
-
-  // Declare some useful variables from order
-
-
-  var sendConfirmation = false;
-
-  if (order.meta.distEmail) {
-
-    var distEmail = order.meta.distEmail;
-
-    sendConfirmation = true;
-
-  }
-
-  var distributor = order.meta.distributor;
-
-  var orderHistoryURL = order.meta.orderHist;
-
-  // Build pretty table of ordered beers
-
-  var specialsTable = buildTable(order, 'specials');
-  var fullTable = buildTable(order, 'all');
-  var oneLine = tableForCopyPaste(order);
-
-
-  // Confirmation email
-
-  var confEmailHtml = '<h2>Thank you for your order.</h2>' + fullTable + '<br>To review full order details, please visit your <a href="' + orderHistoryURL + '">Order History page</a>.';
-
-  // Just in case the email body parameter serves as plaintext fallback?
-
-  var confTextOnly = 'Thank you for your order. To review full order details, please visit your Order History page: ' + orderHistoryURL;
-
-  if (sendConfirmation) {
-
-    // protect against bad email address user input
-    try {
-      GmailApp.sendEmail(distEmail, 'Snake River Brewing packaged beer order', confTextOnly, {
-        htmlBody: confEmailHtml
-      });
-    }
-    catch(e) {
-      GmailApp.sendEmail('adam.romines@gmail.com', 'SRB: Error sending confirmation email', e.message)
-    }
-  }
-
-  // Notification to whomever is doing fulfillment
-
-  var fulfillment = order.meta.notifEmail || FULFILLMENT;
-
-  var salutation = distributor + ' has submitted a new order';
-
-  var specialtyString = '';
-
-  if (specialsTable) {
-    specialtyString = '<h3>Specialty Beers:</h3>' + specialsTable;
-  }
-
-  var notifEmailHtml = '<h2>' + salutation + '.</h2>' + '<h3>Order data:</h3>' + oneLine + '<br>'+ specialtyString + '<br><br><b>Order comments/special instructions:</b> ' + order.meta.comments + '<br><br>To view full order details for this or past orders, visit the ' + distributor + ' <a href="' + orderHistoryURL + '">Order History page</a>. <br><br>To view all current orders, visit the <a href="' + CURRENTORDERS + '">Current Orders Sheet</a>.';
-
-  // Plaintext version
-
-  var notifTextOnly = distributor + ' has submitted an order. To view full order details, please visit their Order History page: ' + orderHistoryURL;
-
-  // Email options object
-
-  var emailOptions = {
-    htmlBody: notifEmailHtml
-    };
-
-
-  if ( order.meta.formMode || order.meta.ccChris ) {
-    emailOptions.cc = CHRIS;
-  }
-
-  if (! order.meta.formMode ) {
-    salutation = 'Testing: ' + salutation;
-  }
-
-  // Send notification email
-
-  GmailApp.sendEmail(fulfillment, salutation, notifTextOnly, emailOptions);
-
-}
-
 
 function decInventory(order) {
 
@@ -551,70 +578,6 @@ function tableForCopyPaste(order) {
   return tableString;
 }
 
-function buildTable(order, restrict) {
- /*
-  * Builds html table for use in email. Even and odd rows get different backgrounds for readability.
-  *
-  */
-  var tableString = '';
-
-  var beers = getBeers(order, restrict);
-
-//  Logger.log('beers: %s', beers);
-
-  if (beers.length) {
-    tableString += '<table style="border: 1px solid black; border-collapse: collapse;"><tr><th style="border: 1px solid black;">Beer</th><th style="border: 1px solid black;">Cases</th><th style="border: 1px solid black;">1/2 Barrel Kegs</th><th style="border: 1px solid black;">1/6 Barrel Kegs</th></tr>';
-
-    for (var i=0; i < beers.length; i++) {
-      if (i%2 == 0) {
-        tableString += beerToTableRow(beers[i], 'even');
-      }
-      else { tableString += beerToTableRow(beers[i], 'odd'); }
-    }
-
-    tableString += '</table>';
-
-  }
-
-
-
-  return tableString;
-
-}
-
-
-function beerToTableRow(beer, oddOrEven) {
- /*
-  * Wraps beer data in <td> tags inside <tr>, styled according to even or odd
-  *
-  */
-
-  var rowData = [
-    beer.name,
-    beer.cases,
-    beer.halfBBL,
-    beer.sixthBBL
-  ];
-
-  if ( beer.specialty ){
-    rowData[1] = '&nbsp;';
-  }
-
-  var trString = '<tr>';
-
-  if ( oddOrEven == 'odd' ){
-    trString = '<tr style="background-color: #E6E6E6;">';
-  }
-
-  for (var i = 0; i < rowData.length; i++) {
-    trString += '<td style="border: 1px solid black; text-align: center;">' + rowData[i] + '</td>';
-  }
-
-  trString += '</tr>';
-
-  return trString;
-
-}
 
 function doCopy() {
   copyTemplateToOrderHistorySheets('Template - 2017 w/ Hefe');

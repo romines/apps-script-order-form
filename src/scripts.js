@@ -11,8 +11,8 @@ document.addEventListener("DOMContentLoaded", function(event) {
 
   function submitForm(form) {
     google.script.run
-    .withSuccessHandler(successConfirmation)
-    .processForm(form);
+      .withSuccessHandler(successConfirmation)
+      .processForm(form);
     handleSubmitInUI();
   }
 
@@ -96,10 +96,16 @@ document.addEventListener("DOMContentLoaded", function(event) {
         $(this).val(index);
       });
 
-    //  $('.specIn').each(function(index){
-    //    var randomNum = Math.floor((Math.random() * 10) + 1)
-    //    $(this).val(randomNum);
-    //  });
+     $('.specIn').each(function(index){
+      //  var randomNum = Math.floor((Math.random() * 10) + 1)
+       $(this).val(index);
+     });
+
+     $('#deliveryDate').val('12/16/2017');
+     $('#email').val('adam.romines@gmail.com');
+     $('#debugEmail').val('adam.romines@gmail.com');
+     $('#comments').val('TEST. These are some order comments comment comment comment . . . ');
+
     });
   }
 
