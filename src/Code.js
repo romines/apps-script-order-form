@@ -32,7 +32,7 @@ var MASTERSHEET = SpreadsheetApp
 
 var CURRENTORDERS = "https://docs.google.com/spreadsheets/d/1APT5vO0k_dGiLADR6uYZf3wgSEORgp6h3F53Vbch68M/edit";
 
-var SENDEMAILS = false;
+var SENDEMAILS = true;
 
 var FULFILLMENT = 'adam.romines@gmail.com';
 
@@ -121,7 +121,7 @@ function processForm(form) {
       distEmail: form.email,
       comments: form.comments,
       formMode: form.formMode,
-      notifEmail: form.debugEmail,
+      notificationEmail: form.debugEmail,
       ccChris: form.ccChris
     },
     canned: {},
@@ -147,11 +147,12 @@ function processForm(form) {
     };
   });
 
-  return writeOrderData(order);
+  order.meta.numSpecialties = getNumberNonEmptyByType(order, 'specialty');
+  order.meta.numCanned = getNumberNonEmptyByType(order, 'canned');
 
-  if (SENDEMAILS) {
-    sendEmails(order);
-  }
+  writeOrderData(order);
+
+  if (SENDEMAILS) sendEmails(order);
 
 }
 
@@ -179,127 +180,115 @@ function writeOrderData (order){
     return item ? item : '';
   }));
 
-  sendEmails(order);
-
 }
 
 function sendEmails (order) {
 
  /*
-  * Uses hardcoded email copy and data from order to send an email notification to the employee
-  * that must fulfill order, an an order confirmation to the customer using GmailApp.sendEmail()
+  * Send an email notification to the employee that must fulfill order
+  * and an order confirmation to the customer using GmailApp.sendEmail()
   *
   */
+  var sendOrderConfirmation = function (order) {
 
-  var sendConfirmation = !!order.meta.distEmail;
+    var confEmailHtml = '<h2>Thank you for your order.</h2>' + buildTable(order, ['canned', 'specialty']) + '<br>To review full order details, please visit your <a href="' + order.meta.orderHist + '">Order History page</a>.';
+    var confTextOnly = 'Thank you for your order. To review full order details, please visit your Order History page: ' + order.meta.orderHist;
 
-  var distEmail = order.meta.distEmail;
-  var distributor = order.meta.distributor;
+    if (order.meta.distEmail && isValidEmailAddress(order.meta.distEmail)) {    // TODO: move email address validation to client, leave try/catch as failsafe
+      // protect against bad email address user input
+      try {
+        GmailApp.sendEmail(order.meta.distEmail, 'Snake River Brewing packaged beer order', confTextOnly, {
+          htmlBody: confEmailHtml
+        });
+      }
+      catch(e) {
+        GmailApp.sendEmail('adam.romines@gmail.com', 'SRB: Error sending confirmation email', e.message)
+      }
+    }
+  };
 
-  var orderHistoryURL = order.meta.orderHist;
+  var sendNewOrderNotification = function (order) {
+    // Notification to whomever is doing fulfillment
 
-  var buildTable = function (order, typesToInclude) {
-   /*
-    * Builds html table for use in email. Even and odd rows get different backgrounds for readability.
-    *
-    */
-    var beerToTableRow = function (beer, oddOrEven) {
+    var tableForCopyPaste = function (order) {
 
-      var rowData = [ beer.name, beer.cans ? beer.cans : '&nbsp;', beer.half, beer.sixth ];
-      var trString = ( oddOrEven == 'odd' ) ? '<tr style="background-color: #E6E6E6;">' : '<tr>';
+      var shortDate = order.meta.dateRequested.slice(0,-5);
+      var tableHeader = '<table style="border: 1px solid black; border-collapse: collapse;"> <tr><td></td> <th colspan="3" style="border: 1px solid black; text-align: center;">Pale</th> <th style="border: 1px solid black; text-align: center;" colspan="3">Lager</th> <th style="border: 1px solid black; text-align: center;" colspan="3">Stout</th> <th style="border: 1px solid black; text-align: center;" colspan="3">Pakos</th> <th style="border: 1px solid black; text-align: center;" colspan="3">Snow King</th> <th style="border: 1px solid black; text-align: center;" colspan="3">Hefe</th> </tr> <tr> <td style="border: 1px solid black; text-align: center;">Date</td> <td style="border: 1px solid black; text-align: center;">case</td> <td style="border: 1px solid black; text-align: center;">1/2 BBL</td> <td style="border: 1px solid black; text-align: center;">1/6 BBL</td> <td style="border: 1px solid black; text-align: center;">case</td> <td style="border: 1px solid black; text-align: center;">1/2 BBL</td> <td style="border: 1px solid black; text-align: center;">1/6 BBL</td> <td style="border: 1px solid black; text-align: center;">case</td> <td style="border: 1px solid black; text-align: center;">1/2 BBL</td> <td style="border: 1px solid black; text-align: center;">1/6 BBL</td> <td style="border: 1px solid black; text-align: center;">case</td> <td style="border: 1px solid black; text-align: center;">1/2 BBL</td> <td style="border: 1px solid black; text-align: center;">1/6 BBL</td> <td style="border: 1px solid black; text-align: center;">case</td> <td style="border: 1px solid black; text-align: center;">1/2 BBL</td> <td style="border: 1px solid black; text-align: center;">1/6 BBL</td> <td style="border: 1px solid black; text-align: center;">case</td> <td style="border: 1px solid black; text-align: center;">1/2 BBL</td> <td style="border: 1px solid black; text-align: center;">1/6 BBL</td> </tr>';
+      var rowStart = '<tr><td style="border: 1px solid black; text-align: center;">' + shortDate + '</td>';
+      var tableString = tableHeader + rowStart;
 
-      rowData.forEach(function (item) {
-        trString += '<td style="border: 1px solid black; text-align: center;">' + item + '</td>';
-      });
-      return trString + '</tr>';
-    };
-
-    var tableString = '<table style="border: 1px solid black; border-collapse: collapse;"><tr><th style="border: 1px solid black;">Beer</th><th style="border: 1px solid black;">Cases</th><th style="border: 1px solid black;">1/2 Barrel Kegs</th><th style="border: 1px solid black;">1/6 Barrel Kegs</th></tr>';
-
-    typesToInclude.forEach(function (beerType) {
-
-      var nonEmptyBeers = Object.keys(order[beerType]).map(function (beerKey) {
-        return order[beerType][beerKey];
+      Object.keys(order.canned).map(function (beerKey) {
+        return order.canned[beerKey];
       }).filter(function (beer) {
         return beer.half || beer.sixth || beer.cans;
+      }).forEach(function (beer) {
+        ['cans', 'half', 'sixth'].forEach(function (unit) {
+          var contents = beer[unit] ? beer[unit] : '&nbsp;'
+          tableString += '<td style="border: 1px solid black; text-align: center;">' + contents + '</td>';
+        });
       });
 
-      for (var i=0; i < nonEmptyBeers.length; i++) {
-        if (i%2 === 0) {
-          tableString += beerToTableRow(nonEmptyBeers[i], 'even');
-        }
-        else { tableString += beerToTableRow(nonEmptyBeers[i], 'odd'); }
-      }
+      return tableString + '</tr></table>';
 
-    });
+    };
 
-    return tableString + '</table>';
+    var distributor               = order.meta.distributor;
+    var fulfillment               = order.meta.notificationEmail || FULFILLMENT;
+    var salutation                = distributor + ' has submitted a new order';
+    var specialtyString           = order.meta.numSpecialties ? '<h3>Specialty Beers:</h3>' + buildTable(order, ['specialty']) : '';
+    var notificationEmailHtml     = '<h2>' + salutation + '.</h2>' + '<h3>Order data:</h3>' + tableForCopyPaste(order) + '<br>'+ specialtyString + '<br><br><b>Order comments/special instructions:</b> ' + order.meta.comments + '<br><br>To view full order details for this or past orders, visit the ' + distributor + ' <a href="' + order.meta.orderHist + '">Order History page</a>. <br><br>To view all current orders, visit the <a href="' + CURRENTORDERS + '">Current Orders Sheet</a>.';
+    var textOnly                  = distributor + ' has submitted an order. To view full order details, please visit their Order History page: ' + order.meta.orderHist;
+    var emailOptions              = { htmlBody: notificationEmailHtml };
+
+    if ( order.meta.formMode || order.meta.ccChris ) emailOptions.cc = CHRIS;
+    if (! order.meta.formMode ) salutation = 'Testing: ' + salutation;
+
+    GmailApp.sendEmail(fulfillment, salutation, textOnly, emailOptions);
 
   };
 
+  sendNewOrderNotification(order);
+  sendOrderConfirmation(order);
 
-  var fullTable = buildTable(order, ['canned', 'specialty']);
-  var specialsTable = buildTable(order, ['specialty']);
-  // var oneLine = tableForCopyPaste(order);
+}
 
+function buildTable (order, typesToInclude) {
 
-  // Confirmation email
+ /*
+  * Builds html table for use in email. Even and odd rows get different backgrounds for readability.
+  *
+  */
+  var beerToTableRow = function (beer, oddOrEven) {
 
-  var confEmailHtml = '<h2>Thank you for your order.</h2>' + fullTable + '<br>To review full order details, please visit your <a href="' + orderHistoryURL + '">Order History page</a>.';
+    var rowData = [ beer.name, beer.cans ? beer.cans : '&nbsp;', beer.half, beer.sixth ];
+    var trString = ( oddOrEven == 'odd' ) ? '<tr style="background-color: #E6E6E6;">' : '<tr>';
 
-  // Just in case the email body parameter serves as plaintext fallback?
+    rowData.forEach(function (item) {
+      trString += '<td style="border: 1px solid black; text-align: center;">' + item + '</td>';
+    });
+    return trString + '</tr>';
+  };
 
-  var confTextOnly = 'Thank you for your order. To review full order details, please visit your Order History page: ' + orderHistoryURL;
+  var tableString = '<table style="border: 1px solid black; border-collapse: collapse;"><tr><th style="border: 1px solid black;">Beer</th><th style="border: 1px solid black;">Cases</th><th style="border: 1px solid black;">1/2 Barrel Kegs</th><th style="border: 1px solid black;">1/6 Barrel Kegs</th></tr>';
 
-  if (sendConfirmation) {
+  typesToInclude.forEach(function (beerType) {
 
-    // protect against bad email address user input
-    try {
-      GmailApp.sendEmail(distEmail, 'Snake River Brewing packaged beer order', confTextOnly, {
-        htmlBody: confEmailHtml
-      });
+    var nonEmptyBeers = Object.keys(order[beerType]).map(function (beerKey) {
+      return order[beerType][beerKey];
+    }).filter(function (beer) {
+      return beer.half || beer.sixth || beer.cans;
+    });
+
+    for (var i=0; i < nonEmptyBeers.length; i++) {
+      if (i%2 === 0) {
+        tableString += beerToTableRow(nonEmptyBeers[i], 'even');
+      }
+      else { tableString += beerToTableRow(nonEmptyBeers[i], 'odd'); }
     }
-    catch(e) {
-      GmailApp.sendEmail('adam.romines@gmail.com', 'SRB: Error sending confirmation email', e.message)
-    }
-  }
 
-  // Notification to whomever is doing fulfillment
+  });
 
-  // var fulfillment = order.meta.notifEmail || FULFILLMENT;
-
-  // var salutation = distributor + ' has submitted a new order';
-
-  // var specialtyString = '';
-
-  // if (specialsTable) {
-  //   specialtyString = '<h3>Specialty Beers:</h3>' + specialsTable;
-  // }
-
-  // var notifEmailHtml = '<h2>' + salutation + '.</h2>' + '<h3>Order data:</h3>' + oneLine + '<br>'+ specialtyString + '<br><br><b>Order comments/special instructions:</b> ' + order.meta.comments + '<br><br>To view full order details for this or past orders, visit the ' + distributor + ' <a href="' + orderHistoryURL + '">Order History page</a>. <br><br>To view all current orders, visit the <a href="' + CURRENTORDERS + '">Current Orders Sheet</a>.';
-
-  // // Plaintext version
-
-  // var notifTextOnly = distributor + ' has submitted an order. To view full order details, please visit their Order History page: ' + orderHistoryURL;
-
-  // // Email options object
-
-  // var emailOptions = {
-  //   htmlBody: notifEmailHtml
-  //   };
-
-
-  // if ( order.meta.formMode || order.meta.ccChris ) {
-  //   emailOptions.cc = CHRIS;
-  // }
-
-  // if (! order.meta.formMode ) {
-  //   salutation = 'Testing: ' + salutation;
-  // }
-
-  // // Send notification email
-
-  // GmailApp.sendEmail(fulfillment, salutation, notifTextOnly, emailOptions);
+  return tableString + '</table>';
 
 }
 
@@ -557,27 +546,6 @@ function subtract(availableBeer, purchasedBeer) {
 
 }
 
-function tableForCopyPaste(order) {
-  var shortDate = order.meta.dateRequested.slice(0,-5);
-
-  var tableHeader = '<table style="border: 1px solid black; border-collapse: collapse;"> <tr><td></td> <th colspan="3" style="border: 1px solid black; text-align: center;">Pale</th> <th style="border: 1px solid black; text-align: center;" colspan="3">Lager</th> <th style="border: 1px solid black; text-align: center;" colspan="3">Stout</th> <th style="border: 1px solid black; text-align: center;" colspan="3">Pakos</th> <th style="border: 1px solid black; text-align: center;" colspan="3">Snow King</th> <th style="border: 1px solid black; text-align: center;" colspan="3">Hefe</th> </tr> <tr> <td style="border: 1px solid black; text-align: center;">Date</td> <td style="border: 1px solid black; text-align: center;">case</td> <td style="border: 1px solid black; text-align: center;">1/2 BBL</td> <td style="border: 1px solid black; text-align: center;">1/6 BBL</td> <td style="border: 1px solid black; text-align: center;">case</td> <td style="border: 1px solid black; text-align: center;">1/2 BBL</td> <td style="border: 1px solid black; text-align: center;">1/6 BBL</td> <td style="border: 1px solid black; text-align: center;">case</td> <td style="border: 1px solid black; text-align: center;">1/2 BBL</td> <td style="border: 1px solid black; text-align: center;">1/6 BBL</td> <td style="border: 1px solid black; text-align: center;">case</td> <td style="border: 1px solid black; text-align: center;">1/2 BBL</td> <td style="border: 1px solid black; text-align: center;">1/6 BBL</td> <td style="border: 1px solid black; text-align: center;">case</td> <td style="border: 1px solid black; text-align: center;">1/2 BBL</td> <td style="border: 1px solid black; text-align: center;">1/6 BBL</td> <td style="border: 1px solid black; text-align: center;">case</td> <td style="border: 1px solid black; text-align: center;">1/2 BBL</td> <td style="border: 1px solid black; text-align: center;">1/6 BBL</td> </tr>';
-  var rowStart = '<tr><td style="border: 1px solid black; text-align: center;">' + shortDate + '</td>';
-  var tableString = tableHeader + rowStart;
-
-  for (var i=0; i < STANDARDS.length; i++) {
-    var beer = order[STANDARDS[i]];
-    for (var j=0; j < UNITS.length; j++) {
-      var unit = UNITS[j]
-      var contents = beer[unit] ? beer[unit] : '&nbsp;'
-      tableString += '<td style="border: 1px solid black; text-align: center;">' + contents + '</td>';
-    }
-  }
-
-  tableString += '</tr></table>';
-
-  return tableString;
-}
-
 
 function doCopy() {
   copyTemplateToOrderHistorySheets('Template - 2017 w/ Hefe');
@@ -780,6 +748,14 @@ function isEmpty(unit) {
 
 }
 
+function getNumberNonEmptyByType (order, beerType) {
+  return Object.keys(order[beerType]).map(function (beerKey) {
+    return order[beerType][beerKey];
+  }).filter(function (beer) {
+    return beer.half || beer.sixth || beer.cans;
+  }).length;
+}
+
 function toCamelCase(s) {
   // remove all characters that should not be in a variable name
   // as well underscores an numbers from the beginning of the string
@@ -793,6 +769,11 @@ function toCamelCase(s) {
       return b + c.toUpperCase();
   });
   return s;
+}
+
+function isValidEmailAddress(emailAddress) {
+  var regex = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+  return regex.test(emailAddress);
 }
 
 function availableOnly (beerRow) { return beerRow[3] === 'Y' || beerRow[3] === 'y'; }
