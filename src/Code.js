@@ -154,6 +154,9 @@ function processForm(form) {
 
   if (SENDEMAILS) sendEmails(order);
 
+  // return value gets passed to client side success handler
+  return order;
+
 }
 
 

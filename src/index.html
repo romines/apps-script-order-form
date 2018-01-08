@@ -3,12 +3,12 @@
 
   <div class="body">
 
-    <div class="formContainer">
+    <div class="form-container">
 
       <h1>Packaged Beer Order Form</h1>
 
 
-      <form id="myForm">
+      <form>
         <p>
           <input type="hidden" name="distributor" value="<?= distributorID ?>" >
           <label for="deliveryDate">Requested Delivery Date &nbsp;</label>
@@ -18,8 +18,9 @@
         </p>
         <p>
           <label for="email">Email address (for order confirmation)</label>
-          <input type="text" name="email" id="email"/>
+          <input type="text" name="email" id="email" class="trigger-validation"/>
         </p>
+        <div class="validation-error red">Sorry, that does not look like a valid email address.</div>
         <p>General order notes/comments</p>
           <textarea name="comments" id="comments" rows="8" cols="76"></textarea>
         <? if (debugMode) { ?>
@@ -47,7 +48,7 @@
 
 
         <h3 class="section">Standard Beers</h3>
-        <table class="tble standards">
+        <table class="beers tble standards">
           <tr>
             <th class="hide"></th>
             <th class="hide"></th>
@@ -64,13 +65,13 @@
                </td>
                <td><img src="<?= beer.imgSrc ?>"></td>
                <td>
-                 <input type="text" name="<?= beer.camelCasedName ?>_case" class="case numbersOnly"/><br>
+                 <input type="text" name="<?= beer.camelCasedName ?>_case" class="beer case numbersOnly trigger-validation"/><br>
                </td>
                <td>
-                 <input type="text" name="<?= beer.camelCasedName ?>_half" class="half numbersOnly"/><br>
+                 <input type="text" name="<?= beer.camelCasedName ?>_half" class="beer half numbersOnly trigger-validation"/><br>
                </td>
                <td>
-                 <input type="text" name="<?= beer.camelCasedName ?>_sixth" class="sixth numbersOnly"/>
+                 <input type="text" name="<?= beer.camelCasedName ?>_sixth" class="beer sixth numbersOnly trigger-validation"/>
                </td>
 
              </tr>
@@ -81,7 +82,7 @@
         <h3 class="section">Specialty Beers</h3>
         <div id="jqOut" class="red"></div>
         <div id="qExceeded" class="red" style="display: none;">You must enter a number less than the quantity available.</div>
-        <table class="tble specialty">
+        <table class="beers tble specialty">
           <tr>
             <th class="hide"></th>
             <th colspan="2">1/2 bbl keg:</th>
@@ -111,11 +112,11 @@
                </td>
                <td><?= beer.availableHalf ?></td>
                <td>
-                 <input type="text" class="numbersOnly specIn" name="<?= beer.camelCasedName ?>_half"/>
+                 <input type="text" class="beer numbersOnly specIn trigger-validation" name="<?= beer.camelCasedName ?>_half"/>
                </td>
                <td><?= beer.availableSixth ?></td>
                <td>
-                 <input type="text" name="<?= beer.camelCasedName?>_sixth" class="numbersOnly specIn" />
+                 <input type="text" name="<?= beer.camelCasedName?>_sixth" class="beer numbersOnly specIn trigger-validation" />
                 </td>
 
              </tr>
@@ -123,9 +124,9 @@
         </table>
 
         <br>
-        <input type="button" value="Submit" class="form-submit-button"
-           onclick="submitForm(this.parentNode);" />
-        </form>
+        <input type="button" value="Submit" class="form-submit-button" />
+
+      </form>
       <div id="standBy"><h2>Please wait while we process your order</h2><br><img src="http://adamromines.me/static/srb/progress.gif"></div>
       <div id="output" style="display: none;">
         <p>If you have any questions or concerns, please contact Rudy Borrego,

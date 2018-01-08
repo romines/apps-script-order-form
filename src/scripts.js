@@ -1,82 +1,156 @@
 document.addEventListener("DOMContentLoaded", function(event) {
+  var $submit;
 
+  addSubmitButtonHandler();
+  addButtonStateManager();
   addDebugToggleHandler();
   addPopulateFormHandler();
+  addEmailValidation();
   makeSomeInputsNumbersOnly();
-  validateSpecialtyQuantities();
+  // validateSpecialtyQuantities();
 
   $( "#deliveryDate" ).datepicker();
 
-  window.submitForm = submitForm;
+  function addSubmitButtonHandler() {
 
-  function submitForm(form) {
-    google.script.run
-      .withSuccessHandler(successConfirmation)
-      .processForm(form);
-    handleSubmitInUI();
+    var submitForm = function () {
+      var handleSubmitInUI = function (){
+        window.scrollTo(0, 0);
+        $('form').hide();
+        $('#standBy').show();
+      };
+      var form = $('form')[0];
+      console.log(form);
+      google.script.run
+        .withSuccessHandler(successConfirmation)
+        .processForm(form);
+      handleSubmitInUI();
+    };
+
+    $('form').on('click', '.form-submit-button.active', submitForm);
+
   }
 
-  function handleSubmitInUI(){
-    window.scrollTo(0, 0);
-    $('#myForm').hide();
-    $('#standBy').show();
-  }
 
-  function successConfirmation(order) { //order.meta.orderHist
-
-   /*
-    * Makes an asynchronous call to 'asyncProcessing' function
-    *
-    * Populates 'output' div with confirmation message
-    *
-    */
-
-    $('#standBy').hide();
-
-    // google.script.run.asyncProcessing(order);
+  function successConfirmation(order) {
 
     var message = '<p>Thank you for your submission. If you entered an email address for confirmation, you should receive an email shortly.<br> To review your order, please visit the <a href="' + order.meta.orderHist + '" target="_blank">Order History page</a>.</p>';
 
-
+    $('#standBy').hide();
     $('#output').prepend(message).show();
 
   }
 
+  function emailIsValidIfPresent() {
 
-  function validateSpecialtyQuantities() {
+    var userEntry = $('#email').val();
+    if (userEntry === '') return true;
 
-    $('.specIn').focus(function() {
+    var isValidEmailAddress = function (emailAddress) {
+      var regex = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+      return regex.test(emailAddress);
+    };
+    return isValidEmailAddress(userEntry);
+  }
 
-      var numRed = $('.specialty').find('input.red').length;
+  function addButtonStateManager() {
 
-      if ($(this).hasClass('red')) {
+    $submit = $('.form-submit-button');
 
-        $(this).removeClass('red');
+    var someBeersOrdered = function () {
+      return $('.beers .beer').map(function () {
+        var userEntry = $(this).val();
+        if (!userEntry) return null;
+        return parseInt(userEntry, 10);
+      }).get()
+      .filter(function (beerOrdered) { return !!beerOrdered; })
+      .length;
+    };
 
-        if ( numRed == 1) {
-          $('#qExceeded').hide();
-        }
+    var specialtyQuantitiesAreValid = function () {
 
-      }
+      $('#qExceeded').hide();
 
-    });
+      $('.specIn').each(function(index) {
 
-    $('.specIn').blur(function() {
+        var inputVal = parseInt($(this).val(), 10);
+        var availableQ = parseInt($(this).parent().prev().text(), 10);
 
-      var inputVal = parseInt($(this).val(), 10);
-      var availableQ = parseInt($(this).parent().prev().text(), 10);
+        if (inputVal > availableQ) $(this).addClass('red');
+
+      });
 
 
-      if (inputVal > availableQ) {
-        $(this).addClass('red');
-      }
-
-      if ($('.specialty').find('input.red').length != 0) {
+      if ($('.specialty').find('input.red').length > 0) {
         $('#qExceeded').show();
+        return false;
+      } else {
+        return true;
+      }
+    };
+
+    $('.trigger-validation').keyup(function () {
+
+      $submit.removeClass('active');
+      $('.form-container').removeClass('invalid');
+
+      if (someBeersOrdered() && emailIsValidIfPresent() && specialtyQuantitiesAreValid()) {
+        $submit.addClass('active');
+      } else {
+        $('.form-container').addClass('invalid');
       }
 
     });
   }
+
+  function addEmailValidation() {
+
+    $('#email').focus(function(e) {
+      // trying or trying again
+      $('.validation-error').hide();
+      $('.form-container').removeClass('invalid-email');
+    });
+
+    $('#email').blur(function() {
+      if (!emailIsValidIfPresent()) {
+        $('.validation-error').show();
+        $('.form-container').addClass('invalid-email');
+      }
+    });
+
+  }
+
+  // function validateSpecialtyQuantities() {
+
+  //   $('.specIn').focus(function() {
+
+  //     var numRed = $('.specialty').find('input.red').length;
+
+  //     if ($(this).hasClass('red')) {
+
+  //       $(this).removeClass('red');
+
+  //       if ( numRed == 1) {
+  //         $('#qExceeded').hide();
+  //       }
+  //     }
+  //   });
+
+  //   $('.specIn').blur(function() {
+
+  //     var inputVal = parseInt($(this).val(), 10);
+  //     var availableQ = parseInt($(this).parent().prev().text(), 10);
+
+  //     if (inputVal > availableQ) {
+  //       $(this).addClass('red');
+  //     }
+
+  //     if ($('.specialty').find('input.red').length != 0) {
+  //       $('#qExceeded').show();
+  //     }
+
+  //   });
+  // }
 
   function addDebugToggleHandler() {
 
@@ -105,6 +179,8 @@ document.addEventListener("DOMContentLoaded", function(event) {
      $('#email').val('adam.romines@gmail.com');
      $('#debugEmail').val('adam.romines@gmail.com');
      $('#comments').val('TEST. These are some order comments comment comment comment . . . ');
+
+     $($('.trigger-validation')[0]).keyup();
 
     });
   }
