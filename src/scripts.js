@@ -3,10 +3,11 @@ document.addEventListener("DOMContentLoaded", function(event) {
 
   addSubmitButtonHandler();
   addButtonStateManager();
-  addDebugToggleHandler();
-  addPopulateFormHandler();
   addEmailValidation();
+  setWriteInKeyupHandler();
   makeSomeInputsNumbersOnly();
+
+  addDebugToggleHandler();
   // validateSpecialtyQuantities();
 
   $( "#deliveryDate" ).datepicker();
@@ -20,7 +21,6 @@ document.addEventListener("DOMContentLoaded", function(event) {
         $('#standBy').show();
       };
       var form = $('form')[0];
-      console.log(form);
       google.script.run
         .withSuccessHandler(successConfirmation)
         .processForm(form);
@@ -67,34 +67,28 @@ document.addEventListener("DOMContentLoaded", function(event) {
       .length;
     };
 
-    var specialtyQuantitiesAreValid = function () {
+    // var specialtyQuantitiesAreValid = function () {
+    //   $('#qExceeded').hide();
+    //   $('.specIn').each(function(index) {
+    //     var inputVal = parseInt($(this).val(), 10);
+    //     var availableQ = parseInt($(this).parent().prev().text(), 10);
+    //     if (inputVal > availableQ) $(this).addClass('red');
+    //   });
 
-      $('#qExceeded').hide();
-
-      $('.specIn').each(function(index) {
-
-        var inputVal = parseInt($(this).val(), 10);
-        var availableQ = parseInt($(this).parent().prev().text(), 10);
-
-        if (inputVal > availableQ) $(this).addClass('red');
-
-      });
-
-
-      if ($('.specialty').find('input.red').length > 0) {
-        $('#qExceeded').show();
-        return false;
-      } else {
-        return true;
-      }
-    };
+    //   if ($('.specialty').find('input.red').length > 0) {
+    //     $('#qExceeded').show();
+    //     return false;
+    //   } else {
+    //     return true;
+    //   }
+    // };
 
     $('.trigger-validation').keyup(function () {
 
       $submit.removeClass('active');
       $('.form-container').removeClass('invalid');
 
-      if (someBeersOrdered() && emailIsValidIfPresent() && specialtyQuantitiesAreValid()) {
+      if (someBeersOrdered() && emailIsValidIfPresent()) {
         $submit.addClass('active');
       } else {
         $('.form-container').addClass('invalid');
@@ -120,37 +114,73 @@ document.addEventListener("DOMContentLoaded", function(event) {
 
   }
 
-  // function validateSpecialtyQuantities() {
+  function setWriteInKeyupHandler() {
 
-  //   $('.specIn').focus(function() {
+    var rowIsEmpty = function ($row) {
+      return !($row.find('textarea').val().length || $row.find('input').filter(function () { return $(this).val() !== ""; }).length);
+    };
 
-  //     var numRed = $('.specialty').find('input.red').length;
+    var onWriteInKeyup = function () {
 
-  //     if ($(this).hasClass('red')) {
+      var $newWriteInRow;
+      var $lastWriteInRow = $('tr.write-in:last-of-type');
 
-  //       $(this).removeClass('red');
+      var lastWriteInRowIsFull = function ($lastWriteInRow) {
+        var $beerName = $lastWriteInRow.find('textarea');
+        var $inputs = $lastWriteInRow.find('input');
 
-  //       if ( numRed == 1) {
-  //         $('#qExceeded').hide();
-  //       }
-  //     }
-  //   });
+        var hasValidQ = function () {
+          return !!$inputs.map(function () {
+            var userEntry = $(this).val();
+            if (!userEntry) return null;
+            return parseInt(userEntry, 10);
+          }).get()
+          .filter(function (beerOrdered) { return !!beerOrdered; })
+          .length;
+        };
 
-  //   $('.specIn').blur(function() {
 
-  //     var inputVal = parseInt($(this).val(), 10);
-  //     var availableQ = parseInt($(this).parent().prev().text(), 10);
+        return $beerName.val().length && hasValidQ();
 
-  //     if (inputVal > availableQ) {
-  //       $(this).addClass('red');
-  //     }
+      };
 
-  //     if ($('.specialty').find('input.red').length != 0) {
-  //       $('#qExceeded').show();
-  //     }
+      var noEmptyRowExists = function () {
+        return $('tr.write-in').filter(function () { return rowIsEmpty($(this)); }).length < 1;
+      }
 
-  //   });
-  // }
+      var trimExtraWriteInRows = function () {
+
+        var $writeInRows = $('tr.write-in');
+        var numEmptyRows = $writeInRows.filter(function () { return rowIsEmpty($(this)); }).length;
+        var $reversed = $($writeInRows.get().reverse());
+
+        $reversed.each(function () {
+          var $row = $(this);
+          if (rowIsEmpty($row) && numEmptyRows >= 2) {
+            $row.remove();
+            numEmptyRows -= 1;
+          }
+        });
+
+      };
+
+      if (lastWriteInRowIsFull($lastWriteInRow) && noEmptyRowExists()) {
+
+        $newWriteInRow = $lastWriteInRow.clone();
+        $newWriteInRow.find('textarea').val('');
+        $newWriteInRow.find('input').val('');
+        $newWriteInRow.appendTo('.specialty').hide().fadeIn(600, setWriteInKeyupHandler);
+
+      } else {
+        trimExtraWriteInRows();
+        setWriteInKeyupHandler();
+      }
+
+    };
+
+    $('.specialty').one('keyup', onWriteInKeyup)
+
+  }
 
   function addDebugToggleHandler() {
 
@@ -170,10 +200,10 @@ document.addEventListener("DOMContentLoaded", function(event) {
         $(this).val(index);
       });
 
-     $('.specIn').each(function(index){
-      //  var randomNum = Math.floor((Math.random() * 10) + 1)
-       $(this).val(index);
-     });
+    //  $('.specIn').each(function(index){
+    //   //  var randomNum = Math.floor((Math.random() * 10) + 1)
+    //    $(this).val(index);
+    //  });
 
      $('#deliveryDate').val('12/16/2017');
      $('#email').val('adam.romines@gmail.com');
