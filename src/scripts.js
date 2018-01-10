@@ -56,6 +56,12 @@ document.addEventListener("DOMContentLoaded", function(event) {
   function addButtonStateManager() {
 
     $submit = $('.form-submit-button');
+    var resetWriteInValidationOnFocus = function () {
+      $('tr.write-in textarea').focus(function (e) {
+        $(e.target).closest('tr.write-in').removeClass('invalid');
+      });
+    };
+    resetWriteInValidationOnFocus();
 
     var someBeersOrdered = function () {
       return $('.beers .beer').map(function () {
@@ -65,6 +71,24 @@ document.addEventListener("DOMContentLoaded", function(event) {
       }).get()
       .filter(function (beerOrdered) { return !!beerOrdered; })
       .length;
+    };
+
+    var allEnumeratedSpecialtiesHaveNames = function () {
+      var rowHasNumbers = function ($row) {
+        return !!$row.find('input').filter(function () { return $(this).val() !== ""; }).length
+      };
+      $('tr.write-in').each(function () {
+        var $row = $(this);
+        console.log(('rowHasNumbers($row): ' + rowHasNumbers($row) + " !$row.find('textarea').val().trim()): " + !$row.find('textarea').val().trim()));
+        if (rowHasNumbers($row) && !$row.find('textarea').val().trim()) $row.addClass('invalid');
+      });
+      if ($('tr.write-in.invalid').length === 0) {
+        // hide message
+        return true;
+      } else {
+        //show message
+        return false;
+      }
     };
 
     // var specialtyQuantitiesAreValid = function () {
@@ -83,15 +107,14 @@ document.addEventListener("DOMContentLoaded", function(event) {
     //   }
     // };
 
-    $('.trigger-validation').keyup(function () {
-
+    $('form').on('keyup', '.trigger-validation', function () {
       $submit.removeClass('active');
-      $('.form-container').removeClass('invalid');
+      // $('.form-container').removeClass('invalid');
 
-      if (someBeersOrdered() && emailIsValidIfPresent()) {
+      if (someBeersOrdered() && emailIsValidIfPresent() && allEnumeratedSpecialtiesHaveNames()) {
         $submit.addClass('active');
       } else {
-        $('.form-container').addClass('invalid');
+        // $('.form-container').addClass('invalid');
       }
 
     });
@@ -102,7 +125,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
     $('#email').focus(function(e) {
       // trying or trying again
       $('.validation-error').hide();
-      $('.form-container').removeClass('invalid-email');
+      // $('.form-container').removeClass('invalid-email');
     });
 
     $('#email').blur(function() {
@@ -123,7 +146,20 @@ document.addEventListener("DOMContentLoaded", function(event) {
     var onWriteInKeyup = function () {
 
       var $newWriteInRow;
+      var $writeInRows = $('tr.write-in');
       var $lastWriteInRow = $('tr.write-in:last-of-type');
+
+      var showHideSpecialtyAvailabilityMessage = function () {
+        var someWriteInsPresent = function () {
+          return $writeInRows.map(function () {
+            return rowIsEmpty($(this))
+          }).get()
+            .some(function (isEmpty) { return !isEmpty; });
+        };
+
+        if (someWriteInsPresent()) { $('.write-in-warning').show(); }
+        else                       { $('.write-in-warning').hide(); }
+      };
 
       var lastWriteInRowIsFull = function ($lastWriteInRow) {
         var $beerName = $lastWriteInRow.find('textarea');
@@ -150,7 +186,6 @@ document.addEventListener("DOMContentLoaded", function(event) {
 
       var trimExtraWriteInRows = function () {
 
-        var $writeInRows = $('tr.write-in');
         var numEmptyRows = $writeInRows.filter(function () { return rowIsEmpty($(this)); }).length;
         var $reversed = $($writeInRows.get().reverse());
 
@@ -176,9 +211,11 @@ document.addEventListener("DOMContentLoaded", function(event) {
         setWriteInKeyupHandler();
       }
 
+      showHideSpecialtyAvailabilityMessage();
+
     };
 
-    $('.specialty').one('keyup', onWriteInKeyup)
+    $('.specialty').one('keyup', '.write-in-trigger', onWriteInKeyup)
 
   }
 

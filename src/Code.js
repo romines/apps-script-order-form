@@ -160,9 +160,10 @@ function processForm(form) {
 }
 
 
-function writeOrderData (order){
+function writeOrderData(order) {
  /*
-  * Builds array of order data and appends as single line to Order Data sheet
+  * Builds a one dimmensional array of order data
+  * written as single line to Order Data sheet
   *
   */
   var orderLine = [order.meta.orderID, order.meta.submissionDate, order.meta.dateRequested, order.meta.comments];
@@ -179,6 +180,7 @@ function writeOrderData (order){
 
   var orderDataSheet = SpreadsheetApp.openByUrl(order.meta.orderData).getSheets()[0];
 
+  // map nulls to empty strings
   orderDataSheet.appendRow(orderLine.map(function (item) {
     return item ? item : '';
   }));
