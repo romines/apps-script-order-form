@@ -55,6 +55,8 @@ document.addEventListener("DOMContentLoaded", function(event) {
 
   function addButtonStateManager() {
 
+    // All validation that might prevent form submission kicked off here
+
     $submit = $('.form-submit-button');
     var resetWriteInValidationOnFocus = function () {
       $('tr.write-in textarea').focus(function (e) {
@@ -79,39 +81,27 @@ document.addEventListener("DOMContentLoaded", function(event) {
       };
       $('tr.write-in').each(function () {
         var $row = $(this);
-        console.log(('rowHasNumbers($row): ' + rowHasNumbers($row) + " !$row.find('textarea').val().trim()): " + !$row.find('textarea').val().trim()));
+        $row.removeClass('invalid');
+        // console.log(('rowHasNumbers($row): ' + rowHasNumbers($row) + " !$row.find('textarea').val().trim()): " + !$row.find('textarea').val().trim()));
         if (rowHasNumbers($row) && !$row.find('textarea').val().trim()) $row.addClass('invalid');
       });
       if ($('tr.write-in.invalid').length === 0) {
-        // hide message
+        $('.write-in-invalid').hide();
         return true;
       } else {
-        //show message
+        $('.write-in-invalid').show();
         return false;
       }
     };
 
-    // var specialtyQuantitiesAreValid = function () {
-    //   $('#qExceeded').hide();
-    //   $('.specIn').each(function(index) {
-    //     var inputVal = parseInt($(this).val(), 10);
-    //     var availableQ = parseInt($(this).parent().prev().text(), 10);
-    //     if (inputVal > availableQ) $(this).addClass('red');
-    //   });
-
-    //   if ($('.specialty').find('input.red').length > 0) {
-    //     $('#qExceeded').show();
-    //     return false;
-    //   } else {
-    //     return true;
-    //   }
-    // };
-
     $('form').on('keyup', '.trigger-validation', function () {
+      // console.log('tVKU');
       $submit.removeClass('active');
       // $('.form-container').removeClass('invalid');
 
-      if (someBeersOrdered() && emailIsValidIfPresent() && allEnumeratedSpecialtiesHaveNames()) {
+      var tests = [someBeersOrdered(), emailIsValidIfPresent(), allEnumeratedSpecialtiesHaveNames()];
+
+      if (tests.every(function (test) {return test;})) {
         $submit.addClass('active');
       } else {
         // $('.form-container').addClass('invalid');
@@ -144,6 +134,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
     };
 
     var onWriteInKeyup = function () {
+      // console.log('wIKU');
 
       var $newWriteInRow;
       var $writeInRows = $('tr.write-in');
@@ -204,7 +195,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
         $newWriteInRow = $lastWriteInRow.clone();
         $newWriteInRow.find('textarea').val('');
         $newWriteInRow.find('input').val('');
-        $newWriteInRow.appendTo('.specialty').hide().fadeIn(600, setWriteInKeyupHandler);
+        $newWriteInRow.removeClass('invalid').appendTo('.specialty table').hide().fadeIn(600, setWriteInKeyupHandler);
 
       } else {
         trimExtraWriteInRows();

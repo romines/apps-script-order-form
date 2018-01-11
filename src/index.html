@@ -47,7 +47,7 @@
           <? } ?>
 
 
-        <h3 class="section">Standard Beers</h3>
+        <h3 class="section-header">Standard Beers</h3>
         <table class="beers tble standards">
           <tr>
             <th class="hide"></th>
@@ -80,32 +80,35 @@
         </table>
 
         <br>
+        <div class="specialty">
+          <h3 class="section-header">Specialty:</h3>
+          <div class="messages">
+            <div class="write-in-warning">Specialty beer orders are subject to availability. Please talk with SRB sales before ordering.</div>
+            <div class="write-in-invalid red">All specialties must have a name.</div>
+          </div>
+          <table class="beers tble">
+            <tr>
 
-        <h3 class="section">Specialty:</h3>
-        <div class="write-in-warning">
-          <span class="message">Specialty beer orders are subject to availability. Please talk with SRB sales before ordering.</span>
+              <th class="beer-style">Beer:</th>
+              <th>1/2 bbl keg:</th>
+              <th>1/6th bbl keg:</th>
+            </tr>
+            <tr class="write-in">
+              <td>
+                <div class="column-container">
+                  <textarea class="write-in-trigger trigger-validation" maxlength="50"></textarea>
+                </div>
+              </td>
+              <td>
+                <input type="text" class="half numbersOnly trigger-validation write-in-trigger">
+              </td>
+              <td>
+                <input type="text" class="sixth numbersOnly trigger-validation write-in-trigger">
+              </td>
+            </tr>
+          </table>
+
         </div>
-        <table class="beers tble specialty">
-          <tr>
-
-            <th class="beer-style">Beer:</th>
-            <th>1/2 bbl keg:</th>
-            <th>1/6th bbl keg:</th>
-          </tr>
-          <tr class="write-in">
-            <td>
-              <div class="column-container">
-                <textarea class="write-in-trigger" maxlength="50"></textarea>
-              </div>
-            </td>
-            <td>
-              <input type="text" class="half numbersOnly trigger-validation write-in-trigger">
-            </td>
-            <td>
-              <input type="text" class="sixth numbersOnly trigger-validation write-in-trigger">
-            </td>
-          </tr>
-        </table>
         <input type="button" value="Submit" class="form-submit-button" />
 
       </form>
