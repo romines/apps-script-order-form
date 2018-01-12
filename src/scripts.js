@@ -8,11 +8,49 @@ document.addEventListener("DOMContentLoaded", function(event) {
   makeSomeInputsNumbersOnly();
 
   addDebugToggleHandler();
+  addPopulateFormHandler();
   // validateSpecialtyQuantities();
 
   $( "#deliveryDate" ).datepicker();
 
   function addSubmitButtonHandler() {
+
+    var $form = $('form');
+    var $standardBeers = $form.find('.standard-beer');
+
+    var prepareForm = function (formEl) {
+
+      var fieldIds = ['distributor', 'date', 'email', 'comments', 'formMode', 'debugEmail', 'ccChris'];
+
+      var data = {
+        meta: {
+          distributor: formEl.distributor,
+          date: formEl.date,
+          email: formEl.email,
+          comments: formEl.comments,
+          formMode: formEl.formMode,
+          debugEmail: formEl.debugEmail,
+          ccChris: formEl.ccChris,
+        },
+        canned: {},
+        specialty: [],
+      };
+
+      $standardBeers.each(function (i, el) {
+        var $beerRow = $(el);
+        var camelCasedName = $beerRow.data('beer');
+        data.canned[camelCasedName] = {
+          name: $beerRow.data('name'),
+          imgUrl: $beerRow.data('imgUrl'),
+          case: $beerRow.find('.case').val(),
+          half: $beerRow.find('.half').val(),
+          sixth: $beerRow.find('.sixth').val()
+        };
+      });
+console.log(data);
+      return data;
+
+    };
 
     var submitForm = function () {
       var handleSubmitInUI = function (){
@@ -20,10 +58,12 @@ document.addEventListener("DOMContentLoaded", function(event) {
         $('form').hide();
         $('#standBy').show();
       };
-      var form = $('form')[0];
+
+      var data = prepareForm($form[0]);
+
       google.script.run
         .withSuccessHandler(successConfirmation)
-        .processForm(form);
+        .processForm(data);
       handleSubmitInUI();
     };
 

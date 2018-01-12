@@ -59,19 +59,19 @@
 
           <? for (var i = 0; i < standardBeers.length; i++) {
              var beer = standardBeers[i]; ?>
-             <tr>
+             <tr class="standard-beer" data-beer="<?= beer.camelCasedName ?>" data-beer-name="<?= beer.name ?>" data-img-url="<?= beer.imgSrc ?>">
                <td>
-                  <b><?= beer.name ?></b>
+                  <b class=""><?= beer.name ?></b>
                </td>
                <td><img src="<?= beer.imgSrc ?>"></td>
                <td>
-                 <input type="text" name="<?= beer.camelCasedName ?>_case" class="beer case numbersOnly trigger-validation"/><br>
+                 <input type="text" class="beer case numbersOnly trigger-validation"/><br>
                </td>
                <td>
-                 <input type="text" name="<?= beer.camelCasedName ?>_half" class="beer half numbersOnly trigger-validation"/><br>
+                 <input type="text" class="beer half numbersOnly trigger-validation"/><br>
                </td>
                <td>
-                 <input type="text" name="<?= beer.camelCasedName ?>_sixth" class="beer sixth numbersOnly trigger-validation"/>
+                 <input type="text" class="beer sixth numbersOnly trigger-validation"/>
                </td>
 
              </tr>

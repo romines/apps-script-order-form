@@ -86,7 +86,7 @@ function doGet(e) {
 
 }
 
-function processForm(form) {
+function processForm(data) {
  /*
   * Triggered on form submit
   *
@@ -94,65 +94,33 @@ function processForm(form) {
 
   // Use distributor ID to retrieve Order Data and Order History spreadsheets
 
-  var sheets = setSheets(form.distributor);
 
-  var orderDataSheet = SpreadsheetApp.openByUrl(sheets.orderData).getSheets()[0];
 
-  var orderID = mkOrderID(orderDataSheet);
+  var prepareOrder = function (data) {
 
-  // build order object
+    var orderDataSheet = SpreadsheetApp.openByUrl(sheets.orderData).getSheets()[0];
+    var sheets = setSheets(data.distributor);
 
-  var submitted = new Date();
+    data.meta.orderID           = mkOrderID(orderDataSheet);
+    data.meta.submissionDate    = (new Date()).toString();
+    data.distributor            = sheets.distName;
+    data.short                  = sheets.short;
+    data.orderData              = sheets.orderData;
+    data.orderHist              = sheets.orderHistory;
 
-  var order = {
-
-  // An order consists of beer objects constructed from form data, and meta information about the
-  // order in a 'meta' object.
-
-    meta: {
-      orderID: orderID,
-      submissionDate: submitted.toString(),
-      distID: form.distributor,
-      distributor: sheets.distName,
-      short: sheets.short,
-      orderData: sheets.orderData,
-      orderHist: sheets.orderHistory,
-      dateRequested: form.date,
-      distEmail: form.email,
-      comments: form.comments,
-      formMode: form.formMode,
-      notificationEmail: form.debugEmail,
-      ccChris: form.ccChris
-    },
-    canned: {},
-    specialty: {}
+    return data;
 
   };
 
-  AVAILABLE_STANDARDS.forEach(function (beer) {
-    order.canned[beer.camelCasedName] = {
-      half: form[beer.camelCasedName + '_half'],
-      sixth: form[beer.camelCasedName + '_sixth'],
-      cans: form[beer.camelCasedName + '_case'],
-      name: beer.name,
-      imgSrc: beer.imgSrc
-    };
-  });
+  var order = prepareOrder(data);
 
-  AVAILABLE_SPECIALTIES.forEach(function (beer) {
-    order.specialty[beer.camelCasedName] = {
-      half: form[beer.camelCasedName + '_half'],
-      sixth: form[beer.camelCasedName + '_sixth'],
-      name: beer.name
-    };
-  });
-
-  order.meta.numSpecialties = getNumberNonEmptyByType(order, 'specialty');
   order.meta.numCanned = getNumberNonEmptyByType(order, 'canned');
 
   writeOrderData(order);
+  var stringy = JSON.stringify(order);
+  gBug('order data', stringy);
 
-  if (SENDEMAILS) sendEmails(order);
+  // if (SENDEMAILS) sendEmails(order);
 
   // return value gets passed to client side success handler
   return order;
@@ -173,10 +141,10 @@ function writeOrderData(order) {
     orderLine.push(ordered.name, ordered.sixth, ordered.half, ordered.cans);
   });
 
-  AVAILABLE_SPECIALTIES.forEach(function (availableBeer) {
-    var ordered = order.specialty[availableBeer.camelCasedName];
-    orderLine.push(ordered.name, ordered.sixth, ordered.half);
-  });
+  // AVAILABLE_SPECIALTIES.forEach(function (availableBeer) {
+  //   var ordered = order.specialty[availableBeer.camelCasedName];
+  //   orderLine.push(ordered.name, ordered.sixth, ordered.half);
+  // });
 
   var orderDataSheet = SpreadsheetApp.openByUrl(order.meta.orderData).getSheets()[0];
 
