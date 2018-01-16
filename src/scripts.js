@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
   addPopulateFormHandler();
   // validateSpecialtyQuantities();
 
-  $( "#deliveryDate" ).datepicker();
+  $( "#dateRequested" ).datepicker();
 
   function addSubmitButtonHandler() {
 
@@ -20,33 +20,40 @@ document.addEventListener("DOMContentLoaded", function(event) {
 
     var prepareForm = function (formEl) {
 
-      var fieldIds = ['distributor', 'date', 'email', 'comments', 'formMode', 'debugEmail', 'ccChris'];
+      var fieldNames = ['distributorId', 'dateRequested', 'email', 'comments', 'debugEmail', 'formMode', 'ccChris'];
 
-      var data = {
-        meta: {
-          distributor: formEl.distributor,
-          date: formEl.date,
-          email: formEl.email,
-          comments: formEl.comments,
-          formMode: formEl.formMode,
-          debugEmail: formEl.debugEmail,
-          ccChris: formEl.ccChris,
-        },
-        canned: {},
-        specialty: [],
-      };
-
-      $standardBeers.each(function (i, el) {
+      var standardBeerTrToOrderItem = function (i, el) {
         var $beerRow = $(el);
         var camelCasedName = $beerRow.data('beer');
-        data.canned[camelCasedName] = {
-          name: $beerRow.data('name'),
+        return {
+          name: $beerRow.data('beer-name'),
           imgUrl: $beerRow.data('imgUrl'),
-          case: $beerRow.find('.case').val(),
+          cases: $beerRow.find('.case').val(),
           half: $beerRow.find('.half').val(),
-          sixth: $beerRow.find('.sixth').val()
+          sixth: $beerRow.find('.sixth').val(),
+          indexInForm: i
         };
-      });
+      };
+
+      var writeInBeerTrToOrderItem = function (i, el) {
+        var $beerRow = $(el);
+        return {
+          name: $beerRow.find('.beer-name').val().trim(),
+          half: $beerRow.find('.half').val(),
+          sixth: $beerRow.find('.sixth').val(),
+          indexInForm: i
+        };
+      };
+
+      var data = {
+        meta: fieldNames.reduce(function (meta, fieldName) {
+          meta[fieldName] = $form.find('[name="' + fieldName + '"]').val();
+          return meta;
+        }, {}),
+        standard: $standardBeers.map(standardBeerTrToOrderItem).get(),
+        writeIn: $('tr.write-in').map(writeInBeerTrToOrderItem).get(),
+      };
+
 console.log(data);
       return data;
 
@@ -74,7 +81,7 @@ console.log(data);
 
   function successConfirmation(order) {
 
-    var message = '<p>Thank you for your submission. If you entered an email address for confirmation, you should receive an email shortly.<br> To review your order, please visit the <a href="' + order.meta.orderHist + '" target="_blank">Order History page</a>.</p>';
+    var message = '<p>Thank you for your submission. If you entered an email address for confirmation, you should receive an email shortly.<br> To review your order, please visit the <a href="' + order.meta.distributor.orderHist + '" target="_blank">Order History page</a>.</p>';
 
     $('#standBy').hide();
     $('#output').prepend(message).show();
@@ -273,12 +280,23 @@ console.log(data);
     //    $(this).val(index);
     //  });
 
-     $('#deliveryDate').val('12/16/2017');
+     $('#dateRequested').val('12/16/2017');
      $('#email').val('adam.romines@gmail.com');
      $('#debugEmail').val('adam.romines@gmail.com');
      $('#comments').val('TEST. These are some order comments comment comment comment . . . ');
 
      $($('.trigger-validation')[0]).keyup();
+
+     var $firstWriteIn = $($('.write-in')[0]);
+     $firstWriteIn.find('.beer-name').val('One');
+     $firstWriteIn.find('.half').val('0');
+     $firstWriteIn.find('.sixth').val('1').keyup();
+     setTimeout(() => {
+       var $secondWriteIn = $($('.write-in')[1]);
+       $secondWriteIn.find('.beer-name').val('Two');
+       $secondWriteIn.find('.half').val('2');
+       $secondWriteIn.find('.sixth').val('3');
+     }, 200);
 
     });
   }

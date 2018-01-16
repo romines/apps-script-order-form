@@ -10,9 +10,9 @@
 
       <form>
         <p>
-          <input type="hidden" name="distributor" value="<?= distributorID ?>" >
-          <label for="deliveryDate">Requested Delivery Date &nbsp;</label>
-          <input type="text" name="date" id="deliveryDate" /><br>
+          <input type="hidden" name="distributorId" value="<?= distributorId ?>" >
+          <label for="dateRequested">Requested Delivery Date &nbsp;</label>
+          <input type="text" name="dateRequested" id="dateRequested" /><br>
 
           <span class="smaller">*Please allow 2-3 weeks for delivery</span>
         </p>
@@ -22,8 +22,11 @@
         </p>
         <div class="validation-error red">Sorry, that does not look like a valid email address.</div>
         <p>General order notes/comments</p>
-          <textarea name="comments" id="comments" rows="8" cols="76"></textarea>
+        <textarea name="comments" id="comments" rows="8" cols="76"></textarea>
         <? if (debugMode) { ?>
+
+          <input type="hidden" name="formMode" value="debug">
+
           <div class="debug">
             <h3>Testing mode is on. Turn <a href="#" id="debugOff">off</a></h3>
             <p>
@@ -96,7 +99,7 @@
             <tr class="write-in">
               <td>
                 <div class="column-container">
-                  <textarea class="write-in-trigger trigger-validation" maxlength="50"></textarea>
+                  <textarea class="write-in-trigger trigger-validation beer-name" maxlength="50"></textarea>
                 </div>
               </td>
               <td>

@@ -79,7 +79,7 @@ function doGet(e) {
 
   // Make query string vars available on template object
 
-  templateObject.distributorID = e.parameter.d;
+  templateObject.distributorId = e.parameter.d;
   templateObject.debugMode = e.parameter.debug;
 
   return templateObject.evaluate().setTitle('Packaged Beer Order Form');
@@ -98,15 +98,10 @@ function processForm(data) {
 
   var prepareOrder = function (data) {
 
-    var orderDataSheet = SpreadsheetApp.openByUrl(sheets.orderData).getSheets()[0];
-    var sheets = setSheets(data.distributor);
-
-    data.meta.orderID           = mkOrderID(orderDataSheet);
     data.meta.submissionDate    = (new Date()).toString();
-    data.distributor            = sheets.distName;
-    data.short                  = sheets.short;
-    data.orderData              = sheets.orderData;
-    data.orderHist              = sheets.orderHistory;
+    data.meta.distributor       = getDistributor(data.meta.distributorId);
+    var orderDataSheet          = SpreadsheetApp.openByUrl(data.meta.distributor.orderData).getSheets()[0];
+    data.meta.orderID           = mkOrderID(orderDataSheet);
 
     return data;
 
@@ -114,11 +109,12 @@ function processForm(data) {
 
   var order = prepareOrder(data);
 
-  order.meta.numCanned = getNumberNonEmptyByType(order, 'canned');
+  // order.meta.numCanned = getNumberNonEmptyByType(order, 'canned');
 
   writeOrderData(order);
-  var stringy = JSON.stringify(order);
-  gBug('order data', stringy);
+  // var stringy = JSON.stringify(order);
+  // gBug('order data', stringy);
+  // Logger.log(stringy);
 
   // if (SENDEMAILS) sendEmails(order);
 
@@ -130,28 +126,21 @@ function processForm(data) {
 
 function writeOrderData(order) {
  /*
-  * Builds a one dimmensional array of order data
+  * Builds a one dimensional array of order data
   * written as single line to Order Data sheet
   *
   */
   var orderLine = [order.meta.orderID, order.meta.submissionDate, order.meta.dateRequested, order.meta.comments];
 
-  AVAILABLE_STANDARDS.forEach(function (availableBeer) {
-    var ordered = order.canned[availableBeer.camelCasedName];
-    orderLine.push(ordered.name, ordered.sixth, ordered.half, ordered.cans);
+  order.standard.forEach(function (beer) {
+    orderLine.push('name: ' + beer.name, '1/6th: ' + beer.sixth, '1/2th: ' +  beer.half, 'case : ' +  beer.cases);
   });
 
-  // AVAILABLE_SPECIALTIES.forEach(function (availableBeer) {
-  //   var ordered = order.specialty[availableBeer.camelCasedName];
-  //   orderLine.push(ordered.name, ordered.sixth, ordered.half);
-  // });
+  order.writeIn.forEach(function (beer) {
+    orderLine.push('name: ' + beer.name, '1/6th: ' + beer.sixth, '1/2th: ' +  beer.half);
+  });
 
-  var orderDataSheet = SpreadsheetApp.openByUrl(order.meta.orderData).getSheets()[0];
-
-  // map nulls to empty strings
-  orderDataSheet.appendRow(orderLine.map(function (item) {
-    return item ? item : '';
-  }));
+  var orderDataSheet = SpreadsheetApp.openByUrl(order.meta.distributor.orderData).getSheets()[0];
 
 }
 
@@ -190,9 +179,7 @@ function sendEmails (order) {
       var rowStart = '<tr><td style="border: 1px solid black; text-align: center;">' + shortDate + '</td>';
       var tableString = tableHeader + rowStart;
 
-      Object.keys(order.canned).map(function (beerKey) {
-        return order.canned[beerKey];
-      }).filter(function (beer) {
+      order.canned.filter(function (beer) {
         return beer.half || beer.sixth || beer.cans;
       }).forEach(function (beer) {
         ['cans', 'half', 'sixth'].forEach(function (unit) {
@@ -208,13 +195,14 @@ function sendEmails (order) {
     var distributor               = order.meta.distributor;
     var fulfillment               = order.meta.notificationEmail || FULFILLMENT;
     var salutation                = distributor + ' has submitted a new order';
-    var specialtyString           = order.meta.numSpecialties ? '<h3>Specialty Beers:</h3>' + buildTable(order, ['specialty']) : '';
+    // var specialtyString           = order.meta.numSpecialties ? '<h3>Specialty Beers:</h3>' + buildTable(order, ['specialty']) : '';
+    var specialtyString           = '';
     var notificationEmailHtml     = '<h2>' + salutation + '.</h2>' + '<h3>Order data:</h3>' + tableForCopyPaste(order) + '<br>'+ specialtyString + '<br><br><b>Order comments/special instructions:</b> ' + order.meta.comments + '<br><br>To view full order details for this or past orders, visit the ' + distributor + ' <a href="' + order.meta.orderHist + '">Order History page</a>. <br><br>To view all current orders, visit the <a href="' + CURRENTORDERS + '">Current Orders Sheet</a>.';
     var textOnly                  = distributor + ' has submitted an order. To view full order details, please visit their Order History page: ' + order.meta.orderHist;
     var emailOptions              = { htmlBody: notificationEmailHtml };
 
-    if ( order.meta.formMode || order.meta.ccChris ) emailOptions.cc = CHRIS;
-    if (! order.meta.formMode ) salutation = 'Testing: ' + salutation;
+    if ( order.meta.ccChris ) emailOptions.cc = CHRIS;
+    if ( order.meta.formMode === 'debug') salutation = 'Testing: ' + salutation;
 
     GmailApp.sendEmail(fulfillment, salutation, textOnly, emailOptions);
 
@@ -276,8 +264,6 @@ function asyncProcessing(order) {
 
 
 
-  decInventory(order);
-
   var orderHistSS = SpreadsheetApp.openByUrl(order.meta.orderHist);
 
   // Create new sheet in Order History sheet, named for today's date
@@ -287,12 +273,6 @@ function asyncProcessing(order) {
   var template = orderHistSS.getSheetByName(ORDRHISTEMPLATE);
   var newSheet = template.copyTo(orderHistSS).setName(newSheetName).activate();
   orderHistSS.moveActiveSheet(0);
-
-  try { writeToMaster(order) }
-  catch (e) {
-    Logger.log(e.message);
-    gBug('SRB Ordering error', e.message);
-  }
 
   // Order Meta Data
   //
@@ -361,165 +341,6 @@ function asyncProcessing(order) {
 
 }
 
-function writeToMaster(order) {
-  var last = MASTERSHEET.getLastRow();
-  var currOrders = MASTERSHEET.getRange(3, 1, last, 23).getValues();
-  var distInd = indexFromDistID(order.meta.distID);
-  // Identify appropriate (empty) row of Current Orders sheet to write to based on distributor
-  //
-  if (typeof distInd === 'number') {
-
-    var writeRow = findWriteRow(distInd);
-    var orderLine = makeOrderRow(order);
-    var range = MASTERSHEET.getRange(writeRow, 3, 1, orderLine[0].length);
-    range.setValues(orderLine);
-
-  } else {
-    var debugString = "Distributor '" + order.meta.short + "' not found in Current Orders sheet.";
-    gBug('SRB ordering error', debugString);
-  }
-
-
-
-
-  function findWriteRow(ind) {
-    //
-    // param: ind - a row to check for suitability for writing an incoming order
-    //        given index to check, recursively calls itself until it can return
-    //        an empty row (inserts new rows if none are found)
-    //
-    // returns: number of suitable row in Current Orders sheet
-    //
-    var distributor = currOrders[ind][1];
-    if (typeof distributor === 'string' && distributor !== '') {
-      // a distributor 'short name' has been found in the first column
-      if (distributor === order.meta.short) {
-        // it is the original row checked
-
-        if (isEmpty(ind)) {
-          // first row checked is empty! return that..
-          return ind + 3;
-        }
-
-        else {
-          // first row is occupied, call on next row
-          return findWriteRow(ind + 1)
-        }
-      }
-      else {
-        // is a distributor short name, but not our distributor; must be next distributor
-        // insert row and return appropriate index
-        MASTERSHEET.insertRowAfter(ind + 2);
-        return ind + 3;
-      }
-    }
-    else {
-      // was not a string in first slot; must be secondary row
-      if (isEmpty(ind)) {
-        return ind + 3;
-
-      } else {
-        // row was not empty, call on next row
-        return findWriteRow(ind +1);
-      }
-    }
-  }
-
-  function isEmpty(row) {
-    // row: index of currOrders values array to check
-    // returns: bool -- is range empty?
-
-    var currentRow = currOrders[row];
-    for (var m=2; m < currentRow.length; m++) {
-      var type = typeof currentRow[m];
-      if (typeof currentRow[m] === 'number') {
-        return false;
-      }
-    }
-    // range is blank
-    return true;
-  }
-
-  function indexFromDistID(id) {
-    // loop through current order data identify a match with this distributor's ID
-    // return index of that row
-    for (var i = 0; i < last; i++) {
-      if (currOrders[i][0] == id) {
-        return i;
-      }
-    }
-  }
-
-  function makeOrderRow(order) {
-    var writeRay = [[]];
-
-    for (var i=0; i < STANDARDS.length; i++) {
-      var beer = order[STANDARDS[i]];
-      for (var j=0; j < UNITS.length; j++) {
-        var unit = UNITS[j];
-
-        var ind = (3*i) + j;
-        writeRay[0][ind] = beer[unit];
-      }
-    }
-    var shortDate = order.meta.dateRequested.slice(0,-5);
-    writeRay[0].unshift(shortDate);
-    return writeRay;
-  }
-
-}
-
-
-function decInventory(order) {
-
-  var specBeersOrdered = getSpecials(order);
-
-  var specBeerRange = AVAILABLE_SPECIALTIES.getDataRange();
-
-  var specBeerInventory = specBeerRange.getValues();
-
-  var localInventory = specBeerInventory.slice(0);
-
-  for (var i=1; i < localInventory.length; i++) {
-
-    for (var j=0; j < specBeersOrdered.length; j++) {
-
-      if (specBeersOrdered[j].name == localInventory[i][0]) {
-
-        var diffBeers = subtract(localInventory[i], specBeersOrdered[j])
-
-        localInventory[i][1] = diffBeers.sixth;
-        localInventory[i][2] = diffBeers.half;
-      }
-    }
-  }
-
-  specBeerRange.setValues(localInventory);
-
-
-}
-
-
-function subtract(availableBeer, purchasedBeer) {
-
-  var availSixth = parseInt(availableBeer[1]);
-  var availHalf = parseInt(availableBeer[2]);
-
-  var orderedSixth = parseInt(purchasedBeer.sixthBBL) || 0;
-  var orderedHalf = parseInt(purchasedBeer.halfBBL) || 0;
-
-  var difference = {
-
-    sixth : availSixth - orderedSixth,
-    half : availHalf - orderedHalf
-
-  }
-
-  return difference;
-
-}
-
-
 function doCopy() {
   copyTemplateToOrderHistorySheets('Template - 2017 w/ Hefe');
 }
@@ -549,35 +370,24 @@ function renameOrderHistorySheets (oldSheetName, newSheetName) {
   }
 }
 
-function setSheets(distID) {
+function getDistributor(distributorId) {
 
  /*
   * Given distributor ID, returns object with URLs for order data, history sheets
   *
   */
 
-  var distSheetRange = DISTRIBUTORS.getDataRange();
+  if (!distributorId) return;
 
-  var values = distSheetRange.getValues();
+  var distSheetRangeValues = DISTRIBUTORS.getDataRange().getValues();
+    var row = (distributorId % 100)/4;
 
-  if (distID) {
-
-    // un-obfuscate distributor ID
-
-    var row = (distID % 100)/4;
-
-    // binds URLs of distributor Order Data and Order History sheets to properties of
-    // distSheets object
-
-    var distSheets = {
-      orderData: values[row-1][4],
-      orderHistory: values[row-1][2],
-      distName: values[row-1][1],
-      short: values[row-1][6]
-    };
-  }
-
-    return distSheets;
+  return {
+    orderData: distSheetRangeValues[row-1][4],
+    orderHistory: distSheetRangeValues[row-1][2],
+    name: distSheetRangeValues[row-1][1],
+    id: distributorId
+  };
 
 }
 
@@ -765,7 +575,7 @@ function buildAvailableCannedBeer(beerRow) {
   return {
     name: beerRow[0],
     imgSrc: beerRow[2],
-    camelCasedName: toCamelCase(beerRow[1])
+    camelCasedName: toCamelCase(beerRow[0])
   };
 }
 
