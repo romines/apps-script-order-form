@@ -57,7 +57,8 @@ AVAILABLE_SPECIALTIES.shift();
 
 var STANDARDS = ['pale','lager','zonker','pakos','snowKing', 'hefe'];
 
-var ORDRHISTEMPLATE = '2018 w/ Snow King';
+var ORDRHISTEMPLATE = 'Template2';
+// var ORDRHISTEMPLATE = '2018 w/ Snow King';
 // 'Template - 2017 w/ Helles'
 // 'Blank w/ Pakitos'
 // 'Blank w/ SK'
@@ -101,7 +102,7 @@ function processForm(data) {
     data.meta.submissionDate    = (new Date()).toString();
     data.meta.distributor       = getDistributor(data.meta.distributorId);
     var orderDataSheet          = SpreadsheetApp.openByUrl(data.meta.distributor.orderData).getSheets()[0];
-    data.meta.orderID           = mkOrderID(orderDataSheet);
+    data.meta.orderId           = mkOrderID(orderDataSheet);
 
     return data;
 
@@ -112,9 +113,12 @@ function processForm(data) {
   // order.meta.numCanned = getNumberNonEmptyByType(order, 'canned');
 
   writeOrderData(order);
-  // var stringy = JSON.stringify(order);
-  // gBug('order data', stringy);
-  // Logger.log(stringy);
+
+  var stringy = JSON.stringify(order);
+  gBug('order data', stringy);
+  Logger.log(stringy);
+
+  writeOrderHistory(order);
 
   // if (SENDEMAILS) sendEmails(order);
 
@@ -130,7 +134,7 @@ function writeOrderData(order) {
   * written as single line to Order Data sheet
   *
   */
-  var orderLine = [order.meta.orderID, order.meta.submissionDate, order.meta.dateRequested, order.meta.comments];
+  var orderLine = [order.meta.orderId, order.meta.submissionDate, order.meta.dateRequested, order.meta.comments];
 
   order.standard.forEach(function (beer) {
     orderLine.push('name: ' + beer.name, '1/6th: ' + beer.sixth, '1/2th: ' +  beer.half, 'case : ' +  beer.cases);
@@ -141,6 +145,66 @@ function writeOrderData(order) {
   });
 
   var orderDataSheet = SpreadsheetApp.openByUrl(order.meta.distributor.orderData).getSheets()[0];
+
+  orderDataSheet.appendRow(orderLine);
+
+}
+
+function writeOrderHistory(order) {
+ /*
+  * Writes Order History, sends email notifications, and decrements inventory (of inventory tracked
+  * beers)
+  *
+  *
+  */
+
+  var orderHistSS = SpreadsheetApp.openByUrl(order.meta.distributor.orderHistory);
+
+  // Create new sheet in Order History sheet, named for today's date
+
+  var newSheetName = orderHistSheetName(order.meta.orderId);
+
+  var template = orderHistSS.getSheetByName(ORDRHISTEMPLATE);
+  var newSheet = template.copyTo(orderHistSS).setName(newSheetName).activate();
+  orderHistSS.moveActiveSheet(0);
+
+  // Order Meta Data
+  //
+  //
+  // Create array of Order ID, Submission Date and Date Requested and write to new Order History sheet
+
+  var rawDate = new Date(order.meta.submissionDate);
+  var friendlyDate = (rawDate.getMonth() + 1).toString() + '/' + rawDate.getDate().toString() + '/' + rawDate.getFullYear().toString();
+
+  var metaLeft = [[order.meta.distributor.name], [order.meta.orderId], [order.meta.comments]]; //, [order.meta.dateRequested]];
+  var metaRight = [[friendlyDate], [order.meta.dateRequested]]
+
+  newSheet.getRange(1, 2, 3, 1).setValues(metaLeft);
+  newSheet.getRange(1, 4, 2, 1).setValues(metaRight);
+
+  // Standards
+
+  var stdBeerWriteRay = [];
+  for (var i = 0; i < order.standard.length; i++) {
+    var beer = order.standard[i];
+    newSheet.insertImage(beer.imgUrl, 2, i+4, 62, 4);
+    stdBeerWriteRay.push([beer.name, '', beer.cases, beer.half, beer.sixth ]);
+  }
+
+  newSheet.getRange(4, 1, order.standard.length, 5).setValues(stdBeerWriteRay);
+
+  // Write-in Beers
+
+  // if (order.writeIn.length) {
+  if (false) {
+
+    var specBeerWriteRay = [];
+
+    for (var j = 0; j < specBeerRay.length; j++) {
+      specBeerWriteRay.push([specBeerRay[j].name, '', specBeerRay[j].halfBBL, specBeerRay[j].sixthBBL ]);
+    }
+    newSheet.getRange(SPECIALSROWINDEX, 2, specBeerWriteRay.length, 4).setValues(specBeerWriteRay);
+  }
 
 }
 
@@ -153,8 +217,8 @@ function sendEmails (order) {
   */
   var sendOrderConfirmation = function (order) {
 
-    var confEmailHtml = '<h2>Thank you for your order.</h2>' + buildTable(order, ['canned', 'specialty']) + '<br>To review full order details, please visit your <a href="' + order.meta.orderHist + '">Order History page</a>.';
-    var confTextOnly = 'Thank you for your order. To review full order details, please visit your Order History page: ' + order.meta.orderHist;
+    var confEmailHtml = '<h2>Thank you for your order.</h2>' + buildTable(order, ['canned', 'specialty']) + '<br>To review full order details, please visit your <a href="' + order.meta.orderHistory + '">Order History page</a>.';
+    var confTextOnly = 'Thank you for your order. To review full order details, please visit your Order History page: ' + order.meta.orderHistory;
 
     if (order.meta.distEmail && isValidEmailAddress(order.meta.distEmail)) {    // TODO: move email address validation to client, leave try/catch as failsafe
       // protect against bad email address user input
@@ -197,8 +261,8 @@ function sendEmails (order) {
     var salutation                = distributor + ' has submitted a new order';
     // var specialtyString           = order.meta.numSpecialties ? '<h3>Specialty Beers:</h3>' + buildTable(order, ['specialty']) : '';
     var specialtyString           = '';
-    var notificationEmailHtml     = '<h2>' + salutation + '.</h2>' + '<h3>Order data:</h3>' + tableForCopyPaste(order) + '<br>'+ specialtyString + '<br><br><b>Order comments/special instructions:</b> ' + order.meta.comments + '<br><br>To view full order details for this or past orders, visit the ' + distributor + ' <a href="' + order.meta.orderHist + '">Order History page</a>. <br><br>To view all current orders, visit the <a href="' + CURRENTORDERS + '">Current Orders Sheet</a>.';
-    var textOnly                  = distributor + ' has submitted an order. To view full order details, please visit their Order History page: ' + order.meta.orderHist;
+    var notificationEmailHtml     = '<h2>' + salutation + '.</h2>' + '<h3>Order data:</h3>' + tableForCopyPaste(order) + '<br>'+ specialtyString + '<br><br><b>Order comments/special instructions:</b> ' + order.meta.comments + '<br><br>To view full order details for this or past orders, visit the ' + distributor + ' <a href="' + order.meta.orderHistory + '">Order History page</a>. <br><br>To view all current orders, visit the <a href="' + CURRENTORDERS + '">Current Orders Sheet</a>.';
+    var textOnly                  = distributor + ' has submitted an order. To view full order details, please visit their Order History page: ' + order.meta.orderHistory;
     var emailOptions              = { htmlBody: notificationEmailHtml };
 
     if ( order.meta.ccChris ) emailOptions.cc = CHRIS;
@@ -250,94 +314,6 @@ function buildTable (order, typesToInclude) {
   });
 
   return tableString + '</table>';
-
-}
-
-
-function asyncProcessing(order) {
- /*
-  * Writes Order History, sends email notifications, and decrements inventory (of inventory tracked
-  * beers)
-  *
-  *
-  */
-
-
-
-  var orderHistSS = SpreadsheetApp.openByUrl(order.meta.orderHist);
-
-  // Create new sheet in Order History sheet, named for today's date
-
-  var newSheetName = orderHistSheetName(order.meta.orderID);
-
-  var template = orderHistSS.getSheetByName(ORDRHISTEMPLATE);
-  var newSheet = template.copyTo(orderHistSS).setName(newSheetName).activate();
-  orderHistSS.moveActiveSheet(0);
-
-  // Order Meta Data
-  //
-  //
-  // Create array of Order ID, Submission Date and Date Requested and write to new Order History sheet
-
-  var rawDate = new Date(order.meta.submissionDate);
-  var friendlyDate = (rawDate.getMonth() + 1).toString() + '/' + rawDate.getDate().toString() + '/' + rawDate.getFullYear().toString();
-
-  var metaLeft = [[order.meta.distributor], [order.meta.orderID], [order.meta.comments]]; //, [order.meta.dateRequested]];
-  var metaRight = [[friendlyDate], [order.meta.dateRequested]]
-
-  newSheet.getRange(1, 2, 3, 1).setValues(metaLeft);
-  newSheet.getRange(1, 4, 2, 1).setValues(metaRight);
-
-  // Standard Beers
-  //
-  //
-  // Create array of standard beer objects from incoming order
-
-  var stdBeerRay = getStandards(order);
-
-  // Create empty array that will be written to Order History spreadsheet range
-
-  var stdBeerWriteRay = [];
-
-  // Loop through incoming beers, append to array
-
-  for (var i = 0; i < stdBeerRay.length; i++) {
-
-    var theThree = [stdBeerRay[i].cases, stdBeerRay[i].halfBBL, stdBeerRay[i].sixthBBL ];
-
-    stdBeerWriteRay.push(theThree);
-
-  }
-
-  // Get 5 (or 6) x3 range and write standard beers to it
-
-  newSheet.getRange(4, 3, stdBeerWriteRay.length, 3).setValues(stdBeerWriteRay);
-
-  // Specialty Beers
-  //
-  //
-  // Similar to standard beers, create ordered array of incoming beers, create and write to
-  // array of decomposed beer objects and write to spreadsheet
-
-  var specBeerRay = getSpecials(order);
-
-  var specBeerWriteRay = [];
-
-  for (var j = 0; j < specBeerRay.length; j++) {
-
-    if (! noneOrdered(specBeerRay[j]) ) {
-
-      var theTwo = [specBeerRay[j].name, '', specBeerRay[j].halfBBL, specBeerRay[j].sixthBBL ];
-
-      specBeerWriteRay.push(theTwo);
-
-      }
-    }
-
-  if (specBeerWriteRay.length !== 0) {
-
-    newSheet.getRange(SPECIALSROWINDEX, 2, specBeerWriteRay.length, 4).setValues(specBeerWriteRay);
-  }
 
 }
 
@@ -418,21 +394,21 @@ function mkOrderID(orderDataSheet){
   }
 }
 
-function orderHistSheetName(orderID) {
+function orderHistSheetName(orderId) {
  /*
-  * Constructs unique Order History Tab names based on orderID. Second (and subsequent) orders
+  * Constructs unique Order History Tab names based on orderId. Second (and subsequent) orders
   * on a single day are given consecutive names ('.02', '.03', etc.)
   *
   *
   */
 
-  var year = orderID.slice(2,4);
-  var month = orderID.slice(4,6);
-  var day = orderID. slice(6,8);
+  var year = orderId.slice(2,4);
+  var month = orderId.slice(4,6);
+  var day = orderId. slice(6,8);
 
   var prettyName = month + '/' + day + '/' + year;
 
-  var lastTwo = orderID.slice(-2);
+  var lastTwo = orderId.slice(-2);
 
   if (lastTwo != '01') {
     prettyName += '.' + lastTwo;

@@ -81,7 +81,7 @@ console.log(data);
 
   function successConfirmation(order) {
 
-    var message = '<p>Thank you for your submission. If you entered an email address for confirmation, you should receive an email shortly.<br> To review your order, please visit the <a href="' + order.meta.distributor.orderHist + '" target="_blank">Order History page</a>.</p>';
+    var message = '<p>Thank you for your submission. If you entered an email address for confirmation, you should receive an email shortly.<br> To review your order, please visit the <a href="' + order.meta.distributor.orderHistory + '" target="_blank">Order History page</a>.</p>';
 
     $('#standBy').hide();
     $('#output').prepend(message).show();
