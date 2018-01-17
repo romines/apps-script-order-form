@@ -195,15 +195,12 @@ function writeOrderHistory(order) {
 
   // Write-in Beers
 
-  // if (order.writeIn.length) {
-  if (false) {
+  if (order.writeIn.length) {
 
-    var specBeerWriteRay = [];
-
-    for (var j = 0; j < specBeerRay.length; j++) {
-      specBeerWriteRay.push([specBeerRay[j].name, '', specBeerRay[j].halfBBL, specBeerRay[j].sixthBBL ]);
-    }
-    newSheet.getRange(SPECIALSROWINDEX, 2, specBeerWriteRay.length, 4).setValues(specBeerWriteRay);
+    var writeIns = order.writeIn.map(function (beer) {
+      return [ beer.name, '', beer.half, beer.sixth ];
+    });
+    newSheet.getRange(3 + order.standard.length + 1, 2, writeIns.length, 4).setValues(writeIns);
   }
 
 }
