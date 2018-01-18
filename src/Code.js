@@ -38,6 +38,8 @@ var FULFILLMENT = 'adam.romines@gmail.com';
 
 var CHRIS = 'adam.romines@gmail.com, adamr@telenect.com';
 
+var stringy = '';
+
   // *** END STAGING GLOBALS ***
 
 var AVAILABLE_STANDARDS = AVAILABLE_BEERS
@@ -114,17 +116,17 @@ function processForm(data) {
 
   writeOrderData(order);
 
-  // var stringy = JSON.stringify(order);
+  stringy = JSON.stringify(order);
   // gBug('order data', stringy);
   // Logger.log(stringy);
 
   var sheetId = writeOrderHistory(order);
 
-  // if (SENDEMAILS) sendEmails(order);
-
-  // return value gets passed to client side success handler
   order.meta.distributor.orderHistory += ('#gid=' + sheetId);
 
+  if (SENDEMAILS) sendEmails(order);
+
+  // return value gets passed to client side success handler
   return order;
 
 }
@@ -220,52 +222,27 @@ function sendEmails (order) {
   */
   var sendOrderConfirmation = function (order) {
 
-    var confEmailHtml = '<h2>Thank you for your order.</h2>' + buildTable(order, ['canned', 'specialty']) + '<br>To review full order details, please visit your <a href="' + order.meta.orderHistory + '">Order History page</a>.';
-    var confTextOnly = 'Thank you for your order. To review full order details, please visit your Order History page: ' + order.meta.orderHistory;
+    var confEmailHtml = '<h2>Thank you for your order.</h2>' + buildTable(order, ['standard', 'writeIn']) + '<br>To review full order details, please visit your <a href="' + order.meta.distributor.orderHistory + '">Order History page</a>.';
+    var confTextOnly = 'Thank you for your order. To review full order details, please visit your Order History page: ' + order.meta.distributor.orderHistory;
 
-    if (order.meta.distEmail && isValidEmailAddress(order.meta.distEmail)) {    // TODO: move email address validation to client, leave try/catch as failsafe
-      // protect against bad email address user input
-      try {
-        GmailApp.sendEmail(order.meta.distEmail, 'Snake River Brewing packaged beer order', confTextOnly, {
-          htmlBody: confEmailHtml
-        });
-      }
-      catch(e) {
-        GmailApp.sendEmail('adam.romines@gmail.com', 'SRB: Error sending confirmation email', e.message)
-      }
+    try {
+      GmailApp.sendEmail(order.meta.email, 'Snake River Brewing packaged beer order', confTextOnly, {
+        htmlBody: confEmailHtml
+      });
+    }
+    catch(e) {
+      GmailApp.sendEmail('adam.romines@gmail.com', 'SRB: Error sending confirmation email', e.message)
     }
   };
 
   var sendNewOrderNotification = function (order) {
     // Notification to whomever is doing fulfillment
 
-    var tableForCopyPaste = function (order) {
-
-      var shortDate = order.meta.dateRequested.slice(0,-5);
-      var tableHeader = '<table style="border: 1px solid black; border-collapse: collapse;"> <tr><td></td> <th colspan="3" style="border: 1px solid black; text-align: center;">Pale</th> <th style="border: 1px solid black; text-align: center;" colspan="3">Lager</th> <th style="border: 1px solid black; text-align: center;" colspan="3">Stout</th> <th style="border: 1px solid black; text-align: center;" colspan="3">Pakos</th> <th style="border: 1px solid black; text-align: center;" colspan="3">Snow King</th> <th style="border: 1px solid black; text-align: center;" colspan="3">Hefe</th> </tr> <tr> <td style="border: 1px solid black; text-align: center;">Date</td> <td style="border: 1px solid black; text-align: center;">case</td> <td style="border: 1px solid black; text-align: center;">1/2 BBL</td> <td style="border: 1px solid black; text-align: center;">1/6 BBL</td> <td style="border: 1px solid black; text-align: center;">case</td> <td style="border: 1px solid black; text-align: center;">1/2 BBL</td> <td style="border: 1px solid black; text-align: center;">1/6 BBL</td> <td style="border: 1px solid black; text-align: center;">case</td> <td style="border: 1px solid black; text-align: center;">1/2 BBL</td> <td style="border: 1px solid black; text-align: center;">1/6 BBL</td> <td style="border: 1px solid black; text-align: center;">case</td> <td style="border: 1px solid black; text-align: center;">1/2 BBL</td> <td style="border: 1px solid black; text-align: center;">1/6 BBL</td> <td style="border: 1px solid black; text-align: center;">case</td> <td style="border: 1px solid black; text-align: center;">1/2 BBL</td> <td style="border: 1px solid black; text-align: center;">1/6 BBL</td> <td style="border: 1px solid black; text-align: center;">case</td> <td style="border: 1px solid black; text-align: center;">1/2 BBL</td> <td style="border: 1px solid black; text-align: center;">1/6 BBL</td> </tr>';
-      var rowStart = '<tr><td style="border: 1px solid black; text-align: center;">' + shortDate + '</td>';
-      var tableString = tableHeader + rowStart;
-
-      order.canned.filter(function (beer) {
-        return beer.half || beer.sixth || beer.cans;
-      }).forEach(function (beer) {
-        ['cans', 'half', 'sixth'].forEach(function (unit) {
-          var contents = beer[unit] ? beer[unit] : '&nbsp;'
-          tableString += '<td style="border: 1px solid black; text-align: center;">' + contents + '</td>';
-        });
-      });
-
-      return tableString + '</tr></table>';
-
-    };
-
-    var distributor               = order.meta.distributor;
+    var distributor               = order.meta.distributor.name;
     var fulfillment               = order.meta.notificationEmail || FULFILLMENT;
     var salutation                = distributor + ' has submitted a new order';
-    // var specialtyString           = order.meta.numSpecialties ? '<h3>Specialty Beers:</h3>' + buildTable(order, ['specialty']) : '';
-    var specialtyString           = '';
-    var notificationEmailHtml     = '<h2>' + salutation + '.</h2>' + '<h3>Order data:</h3>' + tableForCopyPaste(order) + '<br>'+ specialtyString + '<br><br><b>Order comments/special instructions:</b> ' + order.meta.comments + '<br><br>To view full order details for this or past orders, visit the ' + distributor + ' <a href="' + order.meta.orderHistory + '">Order History page</a>. <br><br>To view all current orders, visit the <a href="' + CURRENTORDERS + '">Current Orders Sheet</a>.';
-    var textOnly                  = distributor + ' has submitted an order. To view full order details, please visit their Order History page: ' + order.meta.orderHistory;
+    var notificationEmailHtml     = '<h2>' + salutation + '.</h2>' + '<h3>Order data:</h3>' + buildTable(order, ['standard', 'writeIn']) + '<br><br><b>Order comments/special instructions:</b> ' + order.meta.comments + '<br><br>To view full order details for this or past orders, visit the ' + distributor + ' <a href="' + order.meta.distributor.orderHistory + '">Order History page</a>.';
+    var textOnly                  = distributor + ' has submitted an order. To view full order details, please visit their Order History page: ' + order.meta.distributor.orderHistory;
     var emailOptions              = { htmlBody: notificationEmailHtml };
 
     if ( order.meta.ccChris ) emailOptions.cc = CHRIS;
@@ -276,7 +253,7 @@ function sendEmails (order) {
   };
 
   sendNewOrderNotification(order);
-  sendOrderConfirmation(order);
+  if (order.meta.email) sendOrderConfirmation(order);
 
 }
 
@@ -288,7 +265,7 @@ function buildTable (order, typesToInclude) {
   */
   var beerToTableRow = function (beer, oddOrEven) {
 
-    var rowData = [ beer.name, beer.cans ? beer.cans : '&nbsp;', beer.half, beer.sixth ];
+    var rowData = [ beer.name, beer.cases ? beer.cases : '&nbsp;', beer.half, beer.sixth ];
     var trString = ( oddOrEven == 'odd' ) ? '<tr style="background-color: #E6E6E6;">' : '<tr>';
 
     rowData.forEach(function (item) {
@@ -301,10 +278,8 @@ function buildTable (order, typesToInclude) {
 
   typesToInclude.forEach(function (beerType) {
 
-    var nonEmptyBeers = Object.keys(order[beerType]).map(function (beerKey) {
-      return order[beerType][beerKey];
-    }).filter(function (beer) {
-      return beer.half || beer.sixth || beer.cans;
+    var nonEmptyBeers = order[beerType].filter(function (beer) {
+      return beer.half || beer.sixth || beer.cases;
     });
 
     for (var i=0; i < nonEmptyBeers.length; i++) {
