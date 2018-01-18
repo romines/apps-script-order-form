@@ -12,12 +12,10 @@
   // Global variables for accessing spreadsheet of customers (and URLs for Order History, Order
   // Data spreadsheets).
 
-var UNITS = ['cases', 'halfBBL', 'sixthBBL'];
-
 var TEMPLATES = SpreadsheetApp
-     .openById('1YtKYBlfKC09uwk5BU9Ia8a1KogLJuaIZIh0Kf4JNTSc');
+     .openById('1R7mcj2Jh3PLH5t4YfygLhAI7CAhzCE7PmQGO_rPFbbM');
 
-  // *** STAGING GLOBALS (change this stuff when going from DEV to LIVE ***
+  // *** STAGING GLOBALS (change this stuff when going from dev to production ***
 
 var DISTRIBUTORS = SpreadsheetApp
      .openById('1YpfeSqd4aeoZ9_u4fS4dsJFhwr_Uqw04bv9aW77ckJA')
@@ -38,47 +36,27 @@ var FULFILLMENT = 'adam.romines@gmail.com';
 
 var CHRIS = 'adam.romines@gmail.com, adamr@telenect.com';
 
-var stringy = '';
 
-  // *** END STAGING GLOBALS ***
+// *** END STAGING GLOBALS ***
 
-var AVAILABLE_STANDARDS = AVAILABLE_BEERS
+var standardBeers = AVAILABLE_BEERS
   .getSheets()[0]
   .getDataRange()
   .getValues()
   .filter(availableOnly)
-  .map(buildAvailableCannedBeer);
+  .map(buildAvailableStandardBeer);
 
-var AVAILABLE_SPECIALTIES = AVAILABLE_BEERS
-  .getSheets()[1]
-  .getDataRange()
-  .getValues()
-  .map(buildAvailableSpecialtyBeer);
+  var ORDRHISTEMPLATE = 'Template - 2018';
+  var _orderAsJson = '';
 
-AVAILABLE_SPECIALTIES.shift();
+  function doGet(e) {
 
-var STANDARDS = ['pale','lager','zonker','pakos','snowKing', 'hefe'];
+    var templateObject = HtmlService.createTemplateFromFile('index');
 
-var ORDRHISTEMPLATE = 'Template2';
-// var ORDRHISTEMPLATE = '2018 w/ Snow King';
-// 'Template - 2017 w/ Helles'
-// 'Blank w/ Pakitos'
-// 'Blank w/ SK'
-// 'Blank Sheet'
+    // Expose arrays of currently available standard beers on template object
 
-var SPECIALSROWINDEX = 10;
-// if only 5 canned beers, use 9
-
-  // *** END FLAGSHIP BEER GLOBALS ***
-
-function doGet(e) {
-
-  var templateObject = HtmlService.createTemplateFromFile('index');
-
-  // Expose arrays of currently available specialty and standard beers on template object
-
-  templateObject.specBeers = AVAILABLE_SPECIALTIES;
-  templateObject.standardBeers = AVAILABLE_STANDARDS;
+  standardBeers.shift();
+  templateObject.standardBeers = standardBeers;
 
   // Make query string vars available on template object
 
@@ -91,13 +69,9 @@ function doGet(e) {
 
 function processForm(data) {
  /*
-  * Triggered on form submit
+  * Triggered from client side with raw order object
   *
   */
-
-  // Use distributor ID to retrieve Order Data and Order History spreadsheets
-
-
 
   var prepareOrder = function (data) {
 
@@ -111,14 +85,9 @@ function processForm(data) {
   };
 
   var order = prepareOrder(data);
-
-  // order.meta.numCanned = getNumberNonEmptyByType(order, 'canned');
+  _orderAsJson = JSON.stringify(order);
 
   writeOrderData(order);
-
-  stringy = JSON.stringify(order);
-  // gBug('order data', stringy);
-  // Logger.log(stringy);
 
   var sheetId = writeOrderHistory(order);
 
@@ -126,7 +95,7 @@ function processForm(data) {
 
   if (SENDEMAILS) sendEmails(order);
 
-  // return value gets passed to client side success handler
+  // do this because return value gets passed to client side success handler
   return order;
 
 }
@@ -155,11 +124,6 @@ function writeOrderData(order) {
 }
 
 function writeOrderHistory(order) {
- /*
-  *
-  *
-  *
-  */
 
   var orderHistSS = SpreadsheetApp.openByUrl(order.meta.distributor.orderHistory);
 
@@ -170,6 +134,11 @@ function writeOrderHistory(order) {
   var template = orderHistSS.getSheetByName(ORDRHISTEMPLATE);
   var newSheet = template.copyTo(orderHistSS).setName(newSheetName).activate();
   orderHistSS.moveActiveSheet(0);
+  // this probably takes time and could be avoided if copying sheets didn't break images
+  newSheet.insertImage('https://rapid-connection.surge.sh/snakecans.jpg', 3, 3, 20, 15);
+  newSheet.insertImage('https://rapid-connection.surge.sh/halfBBL.jpg', 4, 3, 44, 4);
+  newSheet.insertImage('https://rapid-connection.surge.sh/sixthBBL.jpg', 5, 3, 50, 9);
+
 
   // Order Meta Data: Order ID, Submission Date and Date Requested
 
@@ -296,7 +265,7 @@ function buildTable (order, typesToInclude) {
 }
 
 function doCopy() {
-  copyTemplateToOrderHistorySheets('Template - 2017 w/ Hefe');
+  copyTemplateToOrderHistorySheets('Template - 2018');
 }
 
 function copyTemplateToOrderHistorySheets (sheetName) {
@@ -310,7 +279,7 @@ function copyTemplateToOrderHistorySheets (sheetName) {
 }
 
 function doRename() {
-  renameOrderHistorySheets('Copy of Template - 2017 w/ Hefe', 'Template - 2017 w/ Hefe')
+  renameOrderHistorySheets('Copy of Template - 2018', 'Template - 2018')
 }
 
 function renameOrderHistorySheets (oldSheetName, newSheetName) {
@@ -396,103 +365,6 @@ function orderHistSheetName(orderId) {
 
 }
 
-
-function getBeers(order, type) {
-
- /*
-  * Arguments: order object
-  *
-  * Returns: ordered list of none-empty beers, standards first
-  *
-  */
-
-  if (type === 'all') {
-    var standards = getStandards(order);
-    var inBeers = standards.concat(getSpecials(order));
-  } else {
-    var inBeers = getSpecials(order);
-  }
-
-  var beers = [];
-
-  for (var i = 0; i < inBeers.length; i++) {
-    if (! noneOrdered(inBeers[i])){
-      beers.push(inBeers[i]);
-    }
-  }
-
-  return beers;
-
-}
-
-function  getStandards(order) {
-
-  // Builds ordered array of standard beers
-  // TODO: change to use global STANDARDS
-  var standards = [order.pale, order.lager, order.zonker, order.pakos, order.snowKing, order.hefe];
-
-  return standards;
-
-}
-
-function getSpecials(order) {
-
-  // Builds ordered array of specialty beers
-
-  var specialties = [order.special1, order.special2, order.special3, order.special4, order.special5, order.special6, order.special7];
-
-  return specialties;
-
-}
-
-function noneOrdered(beer) {
- /*
-  *
-  * method that determines if all unit values (halfBBL, sixthBBL, case) are
-  * zero or undefined for this beer.
-  *
-  * Returns: boolean
-  */
-
-  var empty = false;
-
-  if ( isEmpty(beer.sixthBBL) && isEmpty(beer.halfBBL) && isEmpty(beer.cases) ) {
-
-    empty = true;
-
-  }
-
-  return empty;
-
-}
-
-function isEmpty(unit) {
- /*
-  * Function to test single unit (halfBBL, sixthBBL or cases) within Beer
-  * object for 'emptiness.' Returns true if given unit is 0, undefined,
-  * null, etc.
-  */
-
-  empty = false;
-
-  if (! unit) {
-    empty = true; }
-  else if ( unit == '0' ) {
-    empty = true;
-  }
-
-  return empty;
-
-}
-
-function getNumberNonEmptyByType (order, beerType) {
-  return Object.keys(order[beerType]).map(function (beerKey) {
-    return order[beerType][beerKey];
-  }).filter(function (beer) {
-    return beer.half || beer.sixth || beer.cans;
-  }).length;
-}
-
 function toCamelCase(s) {
   // remove all characters that should not be in a variable name
   // as well underscores an numbers from the beginning of the string
@@ -513,25 +385,19 @@ function isValidEmailAddress(emailAddress) {
   return regex.test(emailAddress);
 }
 
-function availableOnly (beerRow) { return beerRow[3] === 'Y' || beerRow[3] === 'y'; }
-
-function buildAvailableSpecialtyBeer(beerRow) {
+function buildAvailableStandardBeer(beerRow) {
+  Logger.log(beerRow);
   return {
     name: beerRow[0],
-    availableSixth: beerRow[1],
-    availableHalf: beerRow[2],
-    descriptionUrl: beerRow[3],
+    imgSrc: beerRow[1],
     camelCasedName: toCamelCase(beerRow[0])
   };
 }
 
-function buildAvailableCannedBeer(beerRow) {
-  return {
-    name: beerRow[0],
-    imgSrc: beerRow[2],
-    camelCasedName: toCamelCase(beerRow[0])
-  };
-}
+function availableOnly (beerRow) {
+  Logger.log('beerRow[2].indexOf(\'Y\') > -1) || (beerRow[2].indexOf(\'y\') > -1 :' + (beerRow[2].indexOf('Y') > -1) || (beerRow[2].indexOf('y') > -1));
+  return (beerRow[2].indexOf('Y') > -1) || (beerRow[2].indexOf('y') > -1); }
+
 
 function gBug(subj, body) {
 
