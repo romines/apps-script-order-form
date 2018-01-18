@@ -51,7 +51,9 @@ document.addEventListener("DOMContentLoaded", function(event) {
           return meta;
         }, {}),
         standard: $standardBeers.map(standardBeerTrToOrderItem).get(),
-        writeIn: $('tr.write-in').map(writeInBeerTrToOrderItem).get(),
+        writeIn: $('tr.write-in')
+          .filter(function (i, el) { return $(el).find('.beer-name').val().trim().length > 0; })
+          .map(writeInBeerTrToOrderItem).get(),
       };
 
 console.log(data);

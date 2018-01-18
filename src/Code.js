@@ -114,15 +114,17 @@ function processForm(data) {
 
   writeOrderData(order);
 
-  var stringy = JSON.stringify(order);
-  gBug('order data', stringy);
-  Logger.log(stringy);
+  // var stringy = JSON.stringify(order);
+  // gBug('order data', stringy);
+  // Logger.log(stringy);
 
-  writeOrderHistory(order);
+  var sheetId = writeOrderHistory(order);
 
   // if (SENDEMAILS) sendEmails(order);
 
   // return value gets passed to client side success handler
+  order.meta.distributor.orderHistory += ('#gid=' + sheetId);
+
   return order;
 
 }
@@ -152,8 +154,7 @@ function writeOrderData(order) {
 
 function writeOrderHistory(order) {
  /*
-  * Writes Order History, sends email notifications, and decrements inventory (of inventory tracked
-  * beers)
+  *
   *
   *
   */
@@ -168,16 +169,12 @@ function writeOrderHistory(order) {
   var newSheet = template.copyTo(orderHistSS).setName(newSheetName).activate();
   orderHistSS.moveActiveSheet(0);
 
-  // Order Meta Data
-  //
-  //
-  // Create array of Order ID, Submission Date and Date Requested and write to new Order History sheet
+  // Order Meta Data: Order ID, Submission Date and Date Requested
 
-  var rawDate = new Date(order.meta.submissionDate);
-  var friendlyDate = (rawDate.getMonth() + 1).toString() + '/' + rawDate.getDate().toString() + '/' + rawDate.getFullYear().toString();
-
-  var metaLeft = [[order.meta.distributor.name], [order.meta.orderId], [order.meta.comments]]; //, [order.meta.dateRequested]];
-  var metaRight = [[friendlyDate], [order.meta.dateRequested]]
+  var rawDate       = new Date(order.meta.submissionDate);
+  var friendlyDate  = (rawDate.getMonth() + 1).toString() + '/' + rawDate.getDate().toString() + '/' + rawDate.getFullYear().toString();
+  var metaLeft      = [[order.meta.distributor.name], [order.meta.orderId], [order.meta.comments]]; //, [order.meta.dateRequested]];
+  var metaRight     = [[friendlyDate], [order.meta.dateRequested]]
 
   newSheet.getRange(1, 2, 3, 1).setValues(metaLeft);
   newSheet.getRange(1, 4, 2, 1).setValues(metaRight);
@@ -189,19 +186,28 @@ function writeOrderHistory(order) {
     var beer = order.standard[i];
     newSheet.insertImage(beer.imgUrl, 2, i+4, 62, 4);
     stdBeerWriteRay.push([beer.name, '', beer.cases, beer.half, beer.sixth ]);
+    newSheet.setRowHeight(i + 4, 68);
   }
 
   newSheet.getRange(4, 1, order.standard.length, 5).setValues(stdBeerWriteRay);
+  newSheet.getRange(4, 3, order.standard.length, 3).setBorder(true, true, true, true, true, false).setFontSize(24);
 
   // Write-in Beers
 
   if (order.writeIn.length) {
+    newSheet.getRange(order.standard.length + 4, 1, 1, 1).setValue('Write-in/Specialty');
+    newSheet.getRange(order.standard.length + 4, 1, 1, 5).mergeAcross().setBackground('#eeeeee').setBorder(true, true, true, true, false, false).setFontWeight('bold');
 
-    var writeIns = order.writeIn.map(function (beer) {
-      return [ beer.name, '', beer.half, beer.sixth ];
+    var writeIns = order.writeIn.map(function (beer, i) {
+      var rowOffset = i + order.standard.length + 5;
+      newSheet.getRange(rowOffset, 1, 1, 3).mergeAcross();
+      return [ beer.name, '', '', beer.half, beer.sixth ];
     });
-    newSheet.getRange(3 + order.standard.length + 1, 2, writeIns.length, 4).setValues(writeIns);
+    newSheet.getRange(order.standard.length + 5, 1, writeIns.length, 5).setValues(writeIns);
+    newSheet.getRange(order.standard.length + 5, 4, writeIns.length, 2).setBorder(true, true, true, true, true, false).setFontSize(24);
   }
+
+  return newSheet.getSheetId();
 
 }
 
