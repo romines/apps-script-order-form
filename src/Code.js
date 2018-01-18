@@ -24,12 +24,6 @@ var DISTRIBUTORS = SpreadsheetApp
 var AVAILABLE_BEERS = SpreadsheetApp
      .openById('1uIvq7G9ai4dhhszwpFKlSqc5KLczi_AFjWGHlGjxWlg');
 
-var MASTERSHEET = SpreadsheetApp
-     .openById('1APT5vO0k_dGiLADR6uYZf3wgSEORgp6h3F53Vbch68M')
-     .getSheets()[0];
-
-var CURRENTORDERS = "https://docs.google.com/spreadsheets/d/1APT5vO0k_dGiLADR6uYZf3wgSEORgp6h3F53Vbch68M/edit";
-
 var SENDEMAILS = true;
 
 var FULFILLMENT = 'adam.romines@gmail.com';
