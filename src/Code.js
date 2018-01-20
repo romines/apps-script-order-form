@@ -149,12 +149,18 @@ function writeOrderHistory(order) {
   var stdBeerWriteRay = [];
   for (var i = 0; i < order.standard.length; i++) {
     var beer = order.standard[i];
-    newSheet.insertImage(beer.imgUrl, 2, i+4, 62, 4);
+    try {
+      var beerArtwork = UrlFetchApp.fetch(beer.imgUrl).getBlob().getAs('image/png');
+      beerArtwork && newSheet.insertImage(beerArtwork, 2, i+4, 62, 4);
+    }
+    catch(e) {
+      GmailApp.sendEmail('adam.romines@gmail.com', 'SRB: Error writing image to order history', e.message)
+    }
     stdBeerWriteRay.push([beer.name, '', beer.cases, beer.half, beer.sixth ]);
     newSheet.setRowHeight(i + 4, 68);
   }
 
-  newSheet.getRange(4, 1, order.standard.length, 5).setValues(stdBeerWriteRay);
+  newSheet.getRange(4, 1, order.standard.length, 5).setValues(stdBeerWriteRay).setHorizontalAlignment('center');
   newSheet.getRange(4, 3, order.standard.length, 3).setBorder(true, true, true, true, true, false).setFontSize(24);
 
   // Write-in Beers
@@ -169,6 +175,7 @@ function writeOrderHistory(order) {
       return [ beer.name, '', '', beer.half, beer.sixth ];
     });
     newSheet.getRange(order.standard.length + 5, 1, writeIns.length, 5).setValues(writeIns);
+    newSheet.getRange(order.standard.length + 5, 1, writeIns.length, 3).setFontWeight('bold');
     newSheet.getRange(order.standard.length + 5, 4, writeIns.length, 2).setBorder(true, true, true, true, true, false).setFontSize(24);
   }
 
@@ -208,8 +215,12 @@ function sendEmails (order) {
     var textOnly                  = distributor + ' has submitted an order. To view full order details, please visit their Order History page: ' + order.meta.distributor.orderHistory;
     var emailOptions              = { htmlBody: notificationEmailHtml };
 
-    if ( order.meta.ccChris ) emailOptions.cc = CHRIS;
-    if ( order.meta.formMode === 'debug') salutation = 'Testing: ' + salutation;
+    if ( order.meta.formMode === 'debug') {
+      salutation = 'Testing: ' + salutation;
+      if ( order.meta.ccChris ) emailOptions.cc = CHRIS;
+    } else {
+      emailOptions.cc = CHRIS;
+    }
 
     GmailApp.sendEmail(fulfillment, salutation, textOnly, emailOptions);
 
@@ -219,6 +230,13 @@ function sendEmails (order) {
   if (order.meta.email) sendOrderConfirmation(order);
 
 }
+
+/*
+  ##############################################################################
+  Helpers
+  ##############################################################################
+*/
+
 
 function buildTable (order, typesToInclude) {
 
@@ -256,35 +274,6 @@ function buildTable (order, typesToInclude) {
 
   return tableString + '</table>';
 
-}
-
-function doCopy() {
-  copyTemplateToOrderHistorySheets('Template - 2018');
-}
-
-function copyTemplateToOrderHistorySheets (sheetName) {
-  var template = TEMPLATES.getSheetByName(sheetName);
-  var distributors = DISTRIBUTORS.getDataRange().getValues();
-  for (var i = 1; i<distributors.length; i++) {
-    var url = distributors[i][2];
-    var destination = SpreadsheetApp.openByUrl(url);
-    template.copyTo(destination);
-  }
-}
-
-function doRename() {
-  renameOrderHistorySheets('Copy of Template - 2018', 'Template - 2018')
-}
-
-function renameOrderHistorySheets (oldSheetName, newSheetName) {
-
-  var distributors = DISTRIBUTORS.getDataRange().getValues();
-  for (var i = 1; i<distributors.length; i++) {
-    var url = distributors[i][2];
-    var spreadSheet = SpreadsheetApp.openByUrl(url);
-    var sheet = spreadSheet.getSheetByName(oldSheetName);
-    sheet.setName(newSheetName);
-  }
 }
 
 function getDistributor(distributorId) {
@@ -393,13 +382,44 @@ function availableOnly (beerRow) {
   return (beerRow[2].indexOf('Y') > -1) || (beerRow[2].indexOf('y') > -1); }
 
 
-function gBug(subj, body) {
 
-  body = body || subj
 
-  GmailApp.sendEmail("adam.romines@gmail.com", subj.substring(0, 65), body);
+/*
+  ##############################################################################
+  Utilities
+  ##############################################################################
+*/
 
+function doCopy() {
+  copyTemplateToOrderHistorySheets('Template - 2018');
 }
 
+function doRename() {
+  renameOrderHistorySheets('Copy of Template - 2018', 'Template - 2018')
+}
 
-// ##############################################################################
+function copyTemplateToOrderHistorySheets (sheetName) {
+  var template = TEMPLATES.getSheetByName(sheetName);
+  var distributors = DISTRIBUTORS.getDataRange().getValues();
+  for (var i = 1; i<distributors.length; i++) {
+    var url = distributors[i][2];
+    var destination = SpreadsheetApp.openByUrl(url);
+    template.copyTo(destination);
+  }
+}
+
+function renameOrderHistorySheets (oldSheetName, newSheetName) {
+
+  var distributors = DISTRIBUTORS.getDataRange().getValues();
+  for (var i = 1; i<distributors.length; i++) {
+    var url = distributors[i][2];
+    var spreadSheet = SpreadsheetApp.openByUrl(url);
+    var sheet = spreadSheet.getSheetByName(oldSheetName);
+    sheet.setName(newSheetName);
+  }
+}
+
+function gBug(subj, body) {
+  body = body || subj
+  GmailApp.sendEmail("adam.romines@gmail.com", subj.substring(0, 65), body);
+}
