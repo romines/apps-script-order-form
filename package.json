@@ -9,7 +9,7 @@
     "wrap": "(echo '<script>'; cat ./src/scripts.js; echo '\n</script>') > ./src/JavaScript.html",
     "copy": "cp ./src/*.html ./dist/. && cp ./src/Code.js ./dist/.",
     "build": "npm run wrap && npm run copy",
-    "postbuild": "rm ./src/JavaScript.html && gapps push"
+    "postbuild": "rm ./src/JavaScript.html && gapps push && echo 'deployed to Dev !!!'"
   },
   "repository": {
     "type": "git",

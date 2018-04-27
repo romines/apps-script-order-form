@@ -1,4 +1,5 @@
-document.addEventListener("DOMContentLoaded", function(event) {
+$(document).ready(function(event) {
+  console.log('.ready() . . . ');
   var $submit;
 
   addSubmitButtonHandler();
@@ -56,7 +57,6 @@ document.addEventListener("DOMContentLoaded", function(event) {
           .map(writeInBeerTrToOrderItem).get(),
       };
 
-console.log(data);
       return data;
 
     };
@@ -144,7 +144,6 @@ console.log(data);
     };
 
     $('form').on('keyup', '.trigger-validation', function () {
-      // console.log('tVKU');
       $submit.removeClass('active');
       // $('.form-container').removeClass('invalid');
 
@@ -293,7 +292,7 @@ console.log(data);
      $firstWriteIn.find('.beer-name').val('One');
      $firstWriteIn.find('.half').val('0');
      $firstWriteIn.find('.sixth').val('1').keyup();
-     setTimeout(() => {
+     setTimeout(function () {
        var $secondWriteIn = $($('.write-in')[1]);
        $secondWriteIn.find('.beer-name').val('Two');
        $secondWriteIn.find('.half').val('2');
@@ -303,12 +302,12 @@ console.log(data);
     });
   }
 
-    function makeSomeInputsNumbersOnly() {
-      $('.numbersOnly').keyup(function () {
-        if (!this.value.match(/^([0-9]{0,3})$/)) {
-          this.value = this.value.replace(/[^0-9]/g, '').substring(0,3);
-        }
-      });
-    }
+  function makeSomeInputsNumbersOnly() {
+    $('.numbersOnly').keyup(function () {
+      if (!this.value.match(/^([0-9]{0,3})$/)) {
+        this.value = this.value.replace(/[^0-9]/g, '').substring(0,3);
+      }
+    });
+  }
 
 });
